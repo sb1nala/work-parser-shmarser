@@ -150,3 +150,14 @@ async def test_registry_hh_enabled_without_token_warns(cfg, caplog):
 async def test_registry_respects_disabled(cfg):
     off = replace(cfg, sources={**cfg.sources, "sber": {**cfg.sources["sber"], "enabled": False}})
     assert await names(off) == [TBankSource]
+
+
+async def test_run_cycle_commits_health_state(sm, cfg):
+    await mark_initialized(sm, "first")
+    bot = FakeBot()
+    sources = [FakeSource("first", RuntimeError("boom"))]
+    await run_cycle(bot, sm, sources, cfg, 42, lambda: NOW)
+    await run_cycle(bot, sm, sources, cfg, 42, lambda: NOW)
+    async with sm() as fresh:
+        assert (await repo.get_source_state(fresh, "first")).failing is True
+    assert sum("first" in t and "boom" in t for _, t in bot.sent) == 1
