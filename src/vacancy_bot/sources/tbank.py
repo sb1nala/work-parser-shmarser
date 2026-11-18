@@ -49,7 +49,9 @@ _WORK_FORMATS = {
     "Удаленный": WorkFormat.REMOTE,
 }
 _EXPERIENCE = {"Без опыта": 0, "До года": 0, "1 – 5 лет": 1, "Более 5 лет": 5}
-_INTERNSHIP_GRADE = "Стажер"
+# grade tags imply a minimum experience (years); a vacancy may carry several grades
+_GRADES = {"Стажер": 0, "Стажёр": 0, "Junior": 0, "Middle": 1, "Senior": 3, "Lead": 5}
+_INTERNSHIP_GRADES = {"Стажер", "Стажёр"}
 
 
 def _url(item: dict) -> str:
@@ -61,7 +63,9 @@ def _url(item: dict) -> str:
 
 def _map(item: dict) -> Posting:
     tags = item.get("tags") or []
-    experience = [_EXPERIENCE[t] for t in tags if t in _EXPERIENCE]
+    # the least demanding of all grade and experience tags
+    years = [_EXPERIENCE[t] for t in tags if t in _EXPERIENCE]
+    years += [_GRADES[t] for t in tags if t in _GRADES]
     return Posting(
         source="tbank",
         external_id=item["urlSlug"],
@@ -70,8 +74,8 @@ def _map(item: dict) -> Posting:
         title=item["title"],
         cities=((item["subtitle"],) if item.get("subtitle") else ()),
         work_formats=frozenset(_WORK_FORMATS[t] for t in tags if t in _WORK_FORMATS),
-        employment=Employment.INTERNSHIP if _INTERNSHIP_GRADE in tags else None,
-        experience_years_min=experience[0] if experience else None,
+        employment=Employment.INTERNSHIP if _INTERNSHIP_GRADES & set(tags) else None,
+        experience_years_min=min(years) if years else None,
         description=item.get("shortDescription") or "",
         published_at=None,
         raw=item,

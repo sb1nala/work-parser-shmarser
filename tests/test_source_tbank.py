@@ -6,7 +6,7 @@ import pytest
 import respx
 
 from vacancy_bot.domain import Employment, WorkFormat
-from vacancy_bot.sources.tbank import TBankSource
+from vacancy_bot.sources.tbank import TBankSource, _map
 
 FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "tbank_list.json").read_text("utf-8"))
 ITEMS = FIXTURE["payload"]["vacancies"]
@@ -86,9 +86,9 @@ async def test_maps_tags_and_fallbacks():
     assert intern.cities == ()
     assert intern.work_formats == frozenset()
     assert hybrid_intern.work_formats == frozenset({WorkFormat.HYBRID})
-    # no city, no stated work format, no experience tag
+    # no city, no stated work format, no experience tag; grades Middle/Senior -> min 1 year
     assert middle.cities == () and middle.work_formats == frozenset()
-    assert middle.experience_years_min is None and middle.employment is None
+    assert middle.experience_years_min == 1 and middle.employment is None
     assert middle.url.startswith("https://www.tbank.ru/career/it/vacancy/all/produktovyi-analitik-ds/")
     assert remote.work_formats == frozenset({WorkFormat.REMOTE})
     assert remote.experience_years_min == 0
@@ -174,3 +174,33 @@ async def test_raises_on_bad_result_code():
     respx.post(URL).mock(return_value=httpx.Response(200, json={"resultCode": "ERROR"}))
     with pytest.raises(RuntimeError):
         await run(params())
+
+
+def item(tags):
+    return {"title": "x", "urlSlug": "id", "category": "tcareer_it", "tags": tags}
+
+
+@pytest.mark.parametrize(
+    "tags,years",
+    [
+        (["Стажер"], 0),
+        (["Стажёр"], 0),
+        (["Junior"], 0),
+        (["Middle"], 1),
+        (["Senior"], 3),
+        (["Lead"], 5),
+        (["Senior", "Lead"], 3),  # min over grades
+        (["Senior", "Без опыта"], 0),  # min over grades and experience tags
+        (["Junior", "1 – 5 лет"], 0),
+        (["Lead", "1 – 5 лет"], 1),
+        (["5/2", "Офис"], None),  # neither grade nor experience
+    ],
+)
+def test_grade_tags_map_to_experience(tags, years):
+    assert _map(item(tags)).experience_years_min == years
+
+
+@pytest.mark.parametrize("grade", ["Стажер", "Стажёр"])
+def test_intern_grade_is_internship(grade):
+    assert _map(item([grade])).employment == Employment.INTERNSHIP
+    assert _map(item(["Junior"])).employment is None
