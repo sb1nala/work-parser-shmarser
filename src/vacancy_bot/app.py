@@ -18,7 +18,7 @@ from vacancy_bot.health import health_alert
 from vacancy_bot.pipeline import RunResult, format_error, run_source
 from vacancy_bot.settings import get_settings
 from vacancy_bot.sources.base import Source
-from vacancy_bot.sources.registry import build_sources, make_tbank_client
+from vacancy_bot.sources.registry import build_sources, make_ru_ca_client
 
 log = logging.getLogger(__name__)
 
@@ -82,8 +82,8 @@ async def main() -> None:
     dp = Dispatcher()
     dp.include_router(build_router(sm, settings.owner_id))
 
-    async with httpx.AsyncClient(timeout=30.0) as http, make_tbank_client() as tbank_http:
-        sources = build_sources(cfg, http, settings, tbank_http)
+    async with httpx.AsyncClient(timeout=30.0) as http, make_ru_ca_client() as ru_ca_http:
+        sources = build_sources(cfg, http, settings, ru_ca_http)
         log.info("sources: %s", [s.name for s in sources])
         scheduler = AsyncIOScheduler()
         scheduler.add_job(

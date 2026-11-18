@@ -116,3 +116,12 @@ sources:
       - text: 'стажер OR стажёр OR стажировка OR intern OR trainee OR юниор'
       - text: 'аналитик OR аналитика OR analyst OR analytics OR data OR ML OR "machine learning"'
     max_pages: 10
+  alfa:
+    enabled: true
+    # job.alfabank.ru/api/vacancies, ~2150 вакансий целиком (в основном доставка и продажи),
+    # поэтому запрос сужен направлениями (GET .../api/vacancies/options?listId=business_lines):
+    # 1022 «Аналитика», 1018 «Data» (~70 вакансий). Стажировки Альфы на сайте с JS-защитой
+    # (alfabank.ru/alfafuture) и намеренно не парсятся; здесь ловятся junior-роли без опыта.
+    business_lines: ['1022', '1018']
+    take: 100
+    max_pages: 10

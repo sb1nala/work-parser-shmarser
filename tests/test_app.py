@@ -11,6 +11,7 @@ from vacancy_bot.config import load_config
 from vacancy_bot.db import repo
 from vacancy_bot.domain import Employment, Posting, WorkFormat
 from vacancy_bot.settings import Settings
+from vacancy_bot.sources.alfa import AlfaSource
 from vacancy_bot.sources.hh import HHSource
 from vacancy_bot.sources.registry import build_sources
 from vacancy_bot.sources.sber import SberSource
@@ -133,24 +134,24 @@ async def names(cfg, token=None):
 
 
 async def test_registry_default_config_skips_hh(cfg):
-    assert await names(cfg) == [TBankSource, SberSource, VTBSource]
+    assert await names(cfg) == [TBankSource, SberSource, VTBSource, AlfaSource]
 
 
 async def test_registry_hh_enabled_with_token(cfg):
     on = replace(cfg, sources={**cfg.sources, "hh": {**cfg.sources["hh"], "enabled": True}})
-    assert await names(on, "tok") == [HHSource, TBankSource, SberSource, VTBSource]
+    assert await names(on, "tok") == [HHSource, TBankSource, SberSource, VTBSource, AlfaSource]
 
 
 async def test_registry_hh_enabled_without_token_warns(cfg, caplog):
     on = replace(cfg, sources={**cfg.sources, "hh": {**cfg.sources["hh"], "enabled": True}})
     with caplog.at_level(logging.WARNING):
-        assert await names(on) == [TBankSource, SberSource, VTBSource]
+        assert await names(on) == [TBankSource, SberSource, VTBSource, AlfaSource]
     assert "HH_ACCESS_TOKEN" in caplog.text
 
 
 async def test_registry_respects_disabled(cfg):
     off = replace(cfg, sources={**cfg.sources, "sber": {**cfg.sources["sber"], "enabled": False}})
-    assert await names(off) == [TBankSource, VTBSource]
+    assert await names(off) == [TBankSource, VTBSource, AlfaSource]
 
 
 async def test_run_cycle_commits_health_state(sm, cfg):
@@ -164,31 +165,37 @@ async def test_run_cycle_commits_health_state(sm, cfg):
     assert sum("first" in t and "boom" in t for _, t in bot.sent) == 1
 
 
-async def test_tbank_client_trusts_russian_root_ca(cfg):
-    from vacancy_bot.sources.registry import RUSSIAN_ROOT_CA, make_tbank_client
+async def test_ru_ca_client_trusts_russian_root_ca(cfg):
+    from vacancy_bot.sources.registry import RUSSIAN_ROOT_CA, make_ru_ca_client
 
     assert RUSSIAN_ROOT_CA.exists()
-    async with make_tbank_client() as client:
+    async with make_ru_ca_client() as client:
         ctx = client._transport._pool._ssl_context
         subjects = [dict(x[0] for x in c["subject"]) for c in ctx.get_ca_certs()]
     assert any(s.get("commonName") == "Russian Trusted Root CA" for s in subjects)
     assert len(subjects) > 50  # certifi bundle is still loaded
 
 
-async def test_only_tbank_gets_dedicated_client(cfg):
+async def test_only_tbank_and_alfa_get_dedicated_client(cfg):
     on = replace(cfg, sources={**cfg.sources, "hh": {**cfg.sources["hh"], "enabled": True}})
-    async with httpx.AsyncClient() as shared, httpx.AsyncClient() as tb:
-        built = build_sources(on, shared, settings("tok"), tb)
+    async with httpx.AsyncClient() as shared, httpx.AsyncClient() as ru_ca:
+        built = build_sources(on, shared, settings("tok"), ru_ca)
         clients = {type(s): s._http for s in built}
-    assert clients[TBankSource] is tb
+    assert clients[TBankSource] is ru_ca
     assert clients[HHSource] is shared
     assert clients[SberSource] is shared
     assert clients[VTBSource] is shared
+    assert clients[AlfaSource] is ru_ca
 
 
 async def test_registry_respects_disabled_vtb(cfg):
     off = replace(cfg, sources={**cfg.sources, "vtb": {**cfg.sources["vtb"], "enabled": False}})
-    assert await names(off) == [TBankSource, SberSource]
+    assert await names(off) == [TBankSource, SberSource, AlfaSource]
+
+
+async def test_registry_respects_disabled_alfa(cfg):
+    off = replace(cfg, sources={**cfg.sources, "alfa": {**cfg.sources["alfa"], "enabled": False}})
+    assert await names(off) == [TBankSource, SberSource, VTBSource]
 
 
 async def test_alert_not_persisted_when_send_fails_and_retried(sm, cfg):
