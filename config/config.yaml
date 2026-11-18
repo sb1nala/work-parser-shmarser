@@ -17,7 +17,6 @@ criteria:
     - cv
     - bi
     - product analyst
-    - данных
     - ds
   seniority_stopwords: [middle, senior, lead, ведущий, старший, главный, руководитель, head, principal]
   excluded_role_patterns:
@@ -48,6 +47,9 @@ schedule:
   every_hours: 4
 source_timeout_seconds: 120
 empty_alert_after_hours: 72
+# Вакансия, пропавшая из источника меньше чем на столько часов и вернувшаяся,
+# открывается молча (это сбой выдачи, а не новый набор). Дольше — «🔁 снова открыта».
+reopen_after_hours: 168
 
 sources:
   hh:

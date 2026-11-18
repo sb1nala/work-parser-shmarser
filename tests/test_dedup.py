@@ -7,8 +7,18 @@ A = load_config(Path("config/config.yaml")).company_aliases
 
 
 def test_title_variants_same_key():
+    assert dedup_key("Сбер", "Стажёр-Аналитик", A) == dedup_key("СБЕР", "стажер аналитик", A)
+
+
+def test_parenthesised_team_names_differ():
+    risk = dedup_key("Сбер", "Стажер Data Scientist (Управление риск-моделирования)", A)
+    devices = dedup_key("Сбер", "Стажер Data Scientist (SberDevices)", A)
+    assert risk != devices
+
+
+def test_parentheses_keep_words():
     assert dedup_key("Сбер", "Стажёр-аналитик (Data)", A) == dedup_key(
-        "СБЕР", "стажер аналитик", A
+        "СБЕР", "стажер аналитик data", A
     )
 
 
@@ -28,4 +38,4 @@ def test_different_titles_differ():
 
 
 def test_normalize_title_steps():
-    assert normalize_title("  Стажёр-аналитик (Data)  /  ML ") == "стажер аналитик ml"
+    assert normalize_title("  Стажёр-аналитик (Data)  /  ML ") == "стажер аналитик data ml"

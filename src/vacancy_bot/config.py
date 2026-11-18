@@ -34,6 +34,7 @@ class AppConfig:
     schedule_every_hours: int
     source_timeout_seconds: int
     empty_alert_after_hours: int
+    reopen_after_hours: int  # закрытая меньше этого срока и вернувшаяся — без повторного уведомления
     sources: dict[str, dict]  # имя источника -> его параметры
 
 
@@ -55,5 +56,6 @@ def load_config(path: Path) -> AppConfig:
         schedule_every_hours=int(data["schedule"]["every_hours"]),
         source_timeout_seconds=int(data["source_timeout_seconds"]),
         empty_alert_after_hours=int(data["empty_alert_after_hours"]),
+        reopen_after_hours=int(data.get("reopen_after_hours", 168)),
         sources=dict(data["sources"]),
     )

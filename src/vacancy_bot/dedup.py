@@ -2,15 +2,17 @@ import re
 
 from vacancy_bot.config import normalize
 
-_PARENS = re.compile(r"\([^)]*\)")
 _NON_ALNUM = re.compile(r"[^\w]|_", re.UNICODE)
 _QUOTES = re.compile(r"[«»\"']")
 
 
 def normalize_title(title: str) -> str:
-    """Название для ключа склейки: без скобок и пунктуации."""
-    text = _PARENS.sub(" ", normalize(title))
-    return normalize(_NON_ALNUM.sub(" ", text))
+    """Название для ключа склейки: без пунктуации.
+
+    Слова в скобках сохраняются: там часто стоит команда или подразделение
+    («(SberDevices)», «(Управление риск-моделирования)»), и это разные вакансии.
+    """
+    return normalize(_NON_ALNUM.sub(" ", normalize(title)))
 
 
 def normalize_company(name: str, aliases: dict[str, str]) -> str:

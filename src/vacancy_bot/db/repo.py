@@ -32,6 +32,29 @@ async def has_closed_vacancy(s: AsyncSession, dedup_key: str) -> bool:
     return bool(res.scalar())
 
 
+async def last_closed_seen_at(s: AsyncSession, dedup_key: str) -> datetime | None:
+    """When a closed vacancy with this key was last seen (latest of them), or None."""
+    res = await s.execute(
+        select(func.max(VacancyRow.last_seen_at)).where(
+            VacancyRow.dedup_key == dedup_key, VacancyRow.is_open.is_(False)
+        )
+    )
+    return res.scalar()
+
+
+async def has_open_posting_from(s: AsyncSession, vacancy_id: int, source: str) -> bool:
+    res = await s.execute(
+        select(
+            exists().where(
+                PostingRow.vacancy_id == vacancy_id,
+                PostingRow.source == source,
+                PostingRow.is_open,
+            )
+        )
+    )
+    return bool(res.scalar())
+
+
 async def open_postings_of_source(s: AsyncSession, source: str) -> list[PostingRow]:
     res = await s.execute(
         select(PostingRow).where(PostingRow.source == source, PostingRow.is_open)
