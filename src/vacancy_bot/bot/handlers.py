@@ -10,6 +10,7 @@ from vacancy_bot.bot.messages import (
     format_page,
     page_keyboard,
     parse_status_callback,
+    status_keyboard,
 )
 from vacancy_bot.db import repo
 from vacancy_bot.domain import VacancyStatus
@@ -48,6 +49,12 @@ async def _page(sm: async_sessionmaker, kind: str, offset: int) -> tuple[str, An
     return format_page(rows, total, offset), page_keyboard(kind, offset, total, PAGE_SIZE)
 
 
+async def handle_start(message: Message, sm: async_sessionmaker) -> None:
+    async with sm() as s:
+        _, total = await repo.list_by_status(s, VacancyStatus.NEW, 0, 0)
+    await message.answer(f"{HELP}\n\nВ бэклоге: {total} вакансий — /backlog")
+
+
 async def handle_list(message: Message, sm: async_sessionmaker, kind: str) -> None:
     text, kb = await _page(sm, kind, 0)
     await message.answer(text, reply_markup=kb, parse_mode="HTML", disable_web_page_preview=True)
@@ -67,7 +74,10 @@ async def handle_status(cb: CallbackQuery, sm: async_sessionmaker) -> None:
         return
     await cb.answer("Готово")
     if cb.message is not None:
-        await cb.message.edit_reply_markup(reply_markup=None)
+        # keep the buttons so the status can still change (Интересно -> Откликнулся)
+        await cb.message.edit_reply_markup(
+            reply_markup=status_keyboard(vacancy_id, current=status)
+        )
 
 
 async def handle_page(cb: CallbackQuery, sm: async_sessionmaker) -> None:
@@ -97,7 +107,7 @@ def build_router(sm: async_sessionmaker, owner_id: int) -> Router:
 
     @router.message(Command("start"))
     async def _start(message: Message) -> None:
-        await message.answer(HELP)
+        await handle_start(message, sm)
 
     for kind in KINDS:
 

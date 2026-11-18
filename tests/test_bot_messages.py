@@ -89,3 +89,16 @@ def test_format_page_huge_rows_within_telegram_limit():
     ]
     assert len(format_page(rows, 10, 0)) <= 4096
     assert "http://x" in format_page(rows, 10, 0)
+
+
+def test_status_keyboard_marks_current_status():
+    labels = [b.text for b in status_keyboard(7).inline_keyboard[0]]
+    assert not any(label.startswith("✓") for label in labels)
+    kb = status_keyboard(7, current=VacancyStatus.INTERESTING)
+    buttons = kb.inline_keyboard[0]
+    assert [b.text.startswith("✓ ") for b in buttons] == [True, False, False]
+    assert buttons[0].text == "✓ " + labels[0]
+    # every status can still be chosen, including a change of mind
+    assert [b.callback_data for b in buttons] == [
+        "st:7:interesting", "st:7:hidden", "st:7:applied",
+    ]

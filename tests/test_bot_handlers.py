@@ -12,8 +12,10 @@ from vacancy_bot.bot.handlers import (
     build_router,
     handle_list,
     handle_page,
+    handle_start,
     handle_status,
 )
+from vacancy_bot.bot.messages import status_keyboard
 from vacancy_bot.db.tables import VacancyRow
 from vacancy_bot.domain import VacancyStatus
 
@@ -51,9 +53,38 @@ async def test_status_callback_ok(sm):
     cb = fake_cb(f"st:{vid}:applied")
     await handle_status(cb, sm)
     cb.answer.assert_awaited_once_with("Готово")
-    cb.message.edit_reply_markup.assert_awaited_once_with(reply_markup=None)
+    cb.message.edit_reply_markup.assert_awaited_once_with(
+        reply_markup=status_keyboard(vid, current=VacancyStatus.APPLIED)
+    )
     async with sm() as s:
         assert (await s.get(VacancyRow, vid)).status == VacancyStatus.APPLIED
+
+
+async def test_status_can_change_after_first_choice(sm):
+    async with sm() as s:
+        v = vac("b")
+        s.add(v)
+        await s.commit()
+        vid = v.id
+    await handle_status(fake_cb(f"st:{vid}:interesting"), sm)
+    cb = fake_cb(f"st:{vid}:applied")
+    await handle_status(cb, sm)
+    cb.message.edit_reply_markup.assert_awaited_once_with(
+        reply_markup=status_keyboard(vid, current=VacancyStatus.APPLIED)
+    )
+    async with sm() as s:
+        assert (await s.get(VacancyRow, vid)).status == VacancyStatus.APPLIED
+
+
+async def test_start_shows_backlog_count(sm):
+    async with sm() as s:
+        s.add_all([vac("n1"), vac("n2"), vac("n3", status="hidden"), vac("n4", accepted=False)])
+        await s.commit()
+    msg = SimpleNamespace(answer=AsyncMock())
+    await handle_start(msg, sm)
+    text = msg.answer.await_args.args[0]
+    assert text.startswith("Бот собирает вакансии")
+    assert "В бэклоге: 2 вакансий — /backlog" in text
 
 
 async def test_page_callback_edits_message(sm):

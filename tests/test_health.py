@@ -86,3 +86,9 @@ async def test_recovery_and_still_empty_joins_both(session, cfg):
     assert msg is not None
     first, second = msg.split("\n")
     assert first.startswith("✅") and second.startswith("⚠️")
+
+
+async def test_alert_text_is_html_escaped(session, cfg):
+    await fresh_state(session)
+    msg = await health_alert(session, bad("GET https://x/?a=1&b=2 -> <html>"), cfg, T0)
+    assert msg == "❗ Источник tbank упал: GET https://x/?a=1&amp;b=2 -&gt; &lt;html&gt;"

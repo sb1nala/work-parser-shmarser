@@ -17,6 +17,15 @@ from vacancy_bot.sources.base import Source
 ERROR_MAX_LEN = 500
 
 
+def format_error(exc: BaseException, timeout: int | None = None) -> str:
+    """Owner-readable error text; never empty (asyncio.wait_for raises a bare TimeoutError)."""
+    detail = str(exc)
+    if not detail and timeout is not None and isinstance(exc, TimeoutError):
+        detail = f"no response within {timeout}s"
+    text = f"{type(exc).__name__}: {detail}" if detail else type(exc).__name__
+    return text[:ERROR_MAX_LEN]
+
+
 @dataclass
 class RunResult:
     source: str
@@ -197,7 +206,7 @@ async def run_source(
         try:
             batch = await asyncio.wait_for(src.fetch(), cfg.source_timeout_seconds)
         except Exception as exc:
-            error = f"{type(exc).__name__}: {exc}"[:ERROR_MAX_LEN]
+            error = format_error(exc, cfg.source_timeout_seconds)
             await repo.record_run(s, src.name, started, now(), False, error, 0)
             await s.commit()
             return RunResult(src.name, ok=False, fetched=0, error=error, quiet_count=None)

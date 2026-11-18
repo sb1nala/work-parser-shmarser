@@ -263,3 +263,13 @@ async def test_quiet_run_silences_only_vacancies_of_its_batch(session, cfg):
     )
     assert n == 1
     assert [v.company for v in await repo.unnotified(session)] == ["HhCo"]
+
+
+async def test_timeout_without_message_gets_readable_error(sm, cfg):
+    res = await run_source(sm, FakeSource("hh", TimeoutError()), cfg, lambda: T0)
+    assert res.error == f"TimeoutError: no response within {cfg.source_timeout_seconds}s"
+
+
+async def test_error_without_message_is_type_name(sm, cfg):
+    res = await run_source(sm, FakeSource("hh", RuntimeError()), cfg, lambda: T0)
+    assert res.error == "RuntimeError"

@@ -73,11 +73,17 @@ def format_vacancy(v: VacancyRow) -> str:
     return "\n".join(lines)
 
 
-def status_keyboard(vacancy_id: int) -> InlineKeyboardMarkup:
+def status_keyboard(
+    vacancy_id: int, current: VacancyStatus | None = None
+) -> InlineKeyboardMarkup:
+    """Status buttons; the current status (if any) is marked with "✓ "."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text=label, callback_data=f"st:{vacancy_id}:{status}")
+                InlineKeyboardButton(
+                    text=f"✓ {label}" if status == current else label,
+                    callback_data=f"st:{vacancy_id}:{status}",
+                )
                 for status, label in _BUTTONS
             ]
         ]

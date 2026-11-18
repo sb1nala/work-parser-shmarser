@@ -15,7 +15,7 @@ from vacancy_bot.bot.notifier import send_unnotified
 from vacancy_bot.config import AppConfig, load_config
 from vacancy_bot.db.session import make_sessionmaker
 from vacancy_bot.health import health_alert
-from vacancy_bot.pipeline import ERROR_MAX_LEN, RunResult, run_source
+from vacancy_bot.pipeline import RunResult, format_error, run_source
 from vacancy_bot.settings import get_settings
 from vacancy_bot.sources.base import Source
 from vacancy_bot.sources.registry import build_sources, make_tbank_client
@@ -23,11 +23,14 @@ from vacancy_bot.sources.registry import build_sources, make_tbank_client
 log = logging.getLogger(__name__)
 
 
-async def _notify(bot: Bot, owner_id: int, text: str) -> None:
+async def _notify(bot: Bot, owner_id: int, text: str) -> bool:
+    """Send a message to the owner. Returns False (and logs) if sending failed."""
     try:
         await bot.send_message(owner_id, text)
     except Exception:
         log.exception("sending message to owner failed")
+        return False
+    return True
 
 
 async def run_cycle(
@@ -43,16 +46,19 @@ async def run_cycle(
             result = await run_source(sm, src, cfg, now)
         except Exception as exc:
             log.exception("source %s crashed", src.name)
-            error = f"{type(exc).__name__}: {exc}"[:ERROR_MAX_LEN]
+            error = format_error(exc)
             result = RunResult(src.name, ok=False, fetched=0, error=error, quiet_count=None)
         try:
             if result.quiet_count is not None:
                 await _notify(bot, owner_id, format_quiet_summary(src.name, result.quiet_count))
             async with sm() as s:
                 alert = await health_alert(s, result, cfg, now())
-                await s.commit()
-            if alert:
-                await _notify(bot, owner_id, alert)
+                # persist the state transition only once the owner has been told,
+                # otherwise the next cycle detects it again and retries the alert
+                if alert is None or await _notify(bot, owner_id, alert):
+                    await s.commit()
+                else:
+                    await s.rollback()
         except Exception:
             log.exception("post-processing of source %s failed", src.name)
     try:
@@ -87,6 +93,7 @@ async def main() -> None:
             args=[bot, sm, sources, cfg, settings.owner_id, _utcnow],
             max_instances=1,
             coalesce=True,
+            misfire_grace_time=None,  # a late run (e.g. after sleep) still runs, once
             next_run_time=_utcnow(),
         )
         scheduler.start()

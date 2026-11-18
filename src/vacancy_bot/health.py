@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from html import escape
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,17 +19,18 @@ async def health_alert(
     """
     state = await repo.get_source_state(s, result.source)
     messages: list[str] = []
+    name = escape(result.source)  # alerts are sent with HTML parse mode
 
     if not result.ok:
         if not state.failing:
             state.failing = True
-            messages.append(f"❗ Источник {result.source} упал: {result.error}")
+            messages.append(f"❗ Источник {name} упал: {escape(result.error or '')}")
         await s.flush()
         return "\n".join(messages) or None
 
     if state.failing:
         state.failing = False
-        messages.append(f"✅ Источник {result.source} снова работает")
+        messages.append(f"✅ Источник {name} снова работает")
 
     if result.fetched > 0:
         state.empty_alerted = False
@@ -38,7 +40,7 @@ async def health_alert(
         if not state.empty_alerted and now - reference > timedelta(hours=limit):
             state.empty_alerted = True
             messages.append(
-                f"⚠️ Источник {result.source} ничего не возвращает больше {limit} ч"
+                f"⚠️ Источник {name} ничего не возвращает больше {limit} ч"
                 " — возможно, сломался парсер"
             )
 

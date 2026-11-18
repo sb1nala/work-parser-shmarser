@@ -182,3 +182,24 @@ async def test_only_tbank_gets_dedicated_client(cfg):
     assert clients[TBankSource] is tb
     assert clients[HHSource] is shared
     assert clients[SberSource] is shared
+
+
+async def test_alert_not_persisted_when_send_fails_and_retried(sm, cfg):
+    await mark_initialized(sm, "first")
+    sources = [FakeSource("first", RuntimeError("boom"))]
+    down = FakeBot(fail=True)
+    await run_cycle(down, sm, sources, cfg, 42, lambda: NOW)
+    async with sm() as fresh:
+        assert (await repo.get_source_state(fresh, "first")).failing is False
+    up = FakeBot()
+    await run_cycle(up, sm, sources, cfg, 42, lambda: NOW)
+    assert sum("first" in t and "boom" in t for _, t in up.sent) == 1
+    async with sm() as fresh:
+        assert (await repo.get_source_state(fresh, "first")).failing is True
+
+
+async def test_notify_reports_success():
+    from vacancy_bot.app import _notify
+
+    assert await _notify(FakeBot(), 1, "hi") is True
+    assert await _notify(FakeBot(fail=True), 1, "hi") is False
