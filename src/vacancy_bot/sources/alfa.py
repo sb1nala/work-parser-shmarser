@@ -2,7 +2,8 @@
 
 job.alfabank.ru is a Next.js site whose list is filled from its own public JSON
 API (found in the page's JS chunks and checked with plain requests; no cookies,
-tokens or JavaScript execution needed, certifi is enough for TLS):
+tokens or JavaScript execution needed; the TLS chain ends at the Russian Trusted Root CA,
+so the make_ru_ca_client client is required, certifi alone fails verification):
 
     GET https://job.alfabank.ru/api/vacancies?take=100&skip=0
         &businessLine=1022&businessLine=1018
@@ -28,8 +29,8 @@ unknown codes stay unresolved), archetypeId (work format: 1001 Офис, 1002 "�
 (custom_voc_5_entry_1 "Без опыта", _2 "До 1 года", _5 "1-3 года", _3 "1-5 лет",
 _6 "3-5 лет", _4 "Более 5 лет"), businessLineId, description (HTML) and
 descriptionText/duties/requirements/conditions (plain text), createdAt (ISO, UTC),
-and recruiter contact fields (contactFullName/Phone/Email), which are dropped from
-`raw` on purpose. There is no employment-type field, so employment stays unknown.
+and recruiter contact fields (contactFullName/Phone/Email); `raw` keeps only an
+allowlist of non-personal keys. There is no employment-type field, so employment stays unknown.
 Page of a vacancy: https://job.alfabank.ru/vacancies{slug}.
 
 Internships ("I Choose Alfa", Alfa Campus, ...) are NOT on this API: they live on
@@ -39,7 +40,7 @@ and data roles posted on the regular careers site (currently there are none).
 """
 
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
 
@@ -66,8 +67,20 @@ _EXPERIENCE = {
 }
 
 
+_RAW_KEYS = (
+    "id", "code", "name", "slug", "cityId", "archetypeId", "experienceId", "businessLineId",
+    "jobTypeIds", "createdAt", "updatedAt", "expirationDate",
+)  # fmt: skip
+
+
+def _published(created: str | None) -> datetime | None:
+    if not created:
+        return None
+    dt = datetime.fromisoformat(created)
+    return dt if dt.tzinfo else dt.replace(tzinfo=UTC)  # the API speaks UTC
+
+
 def _map(item: dict, cities: dict[str, str]) -> Posting:
-    created = item.get("createdAt")
     work_format = _WORK_FORMATS.get(item.get("archetypeId"))
     city = cities.get(item.get("cityId"))
     return Posting(
@@ -81,8 +94,11 @@ def _map(item: dict, cities: dict[str, str]) -> Posting:
         employment=None,
         experience_years_min=_EXPERIENCE.get(item.get("experienceId")),
         description=(item.get("descriptionText") or "").strip(),
-        published_at=datetime.fromisoformat(created) if created else None,
-        raw={k: v for k, v in item.items() if not k.startswith("contact")},
+        published_at=_published(item.get("createdAt")),
+        raw={
+            **{k: item[k] for k in _RAW_KEYS if k in item},
+            "descriptionText": (item.get("descriptionText") or "")[:500],
+        },
     )
 
 
@@ -132,11 +148,16 @@ class AlfaSource:
                     f"alfa: malformed vacancies response at skip {skip}: "
                     f"{type(exc).__name__}: {str(exc)[:100]}"
                 ) from exc
+            before = len(found)
             for posting in postings:
                 found.setdefault(posting.external_id, posting)
             skip += len(items)
             if skip >= total:
                 return list(found.values())
+            if items and len(found) == before:
+                raise RuntimeError(
+                    f"alfa: pagination did not advance at skip {skip} (page had no new ids)"
+                )
             if not items:
                 raise RuntimeError(
                     f"alfa: empty page at skip {skip} before total {total} was reached"

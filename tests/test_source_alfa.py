@@ -7,7 +7,7 @@ import pytest
 import respx
 
 from vacancy_bot.domain import WorkFormat
-from vacancy_bot.sources.alfa import AlfaSource, _map
+from vacancy_bot.sources.alfa import _RAW_KEYS, AlfaSource, _map
 
 FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "alfa_list.json").read_text("utf-8"))
 ITEMS = FIXTURE["items"]
@@ -112,9 +112,12 @@ def test_raw_drops_contact_data():
         "contactPhone": "+7 000",
         "contactEmail": "a@b.c",
     }
+    item["recruiterName"] = "Петров Пётр"  # a new, unknown key must not be stored either
     raw = _map(item, {}).raw
     assert not [k for k in raw if k.startswith("contact")]
+    assert "recruiterName" not in raw
     assert raw["id"] == "1"
+    assert set(raw) <= set(_RAW_KEYS) | {"descriptionText"}
 
 
 @respx.mock
@@ -218,3 +221,16 @@ async def test_raises_on_non_json_cities():
     respx.get(OPTIONS_URL).mock(return_value=httpx.Response(200, text="<html>"))
     with pytest.raises(RuntimeError, match="alfa: malformed cities"):
         await run(params())
+
+
+def test_naive_created_at_is_utc():
+    item = {"id": "1", "name": "x", "slug": "/s_1", "createdAt": "2026-11-18T12:51:23"}
+    assert _map(item, {}).published_at == datetime(2026, 11, 18, 12, 51, 23, tzinfo=UTC)
+
+
+@respx.mock
+async def test_raises_when_api_ignores_skip(cities):
+    route = respx.get(URL).mock(return_value=httpx.Response(200, json=page(ITEMS[:2], 99)))
+    with pytest.raises(RuntimeError, match="did not advance"):
+        await run(params(take=2))
+    assert route.call_count == 2
