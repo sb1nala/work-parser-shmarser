@@ -1,0 +1,85 @@
+# Критерии отбора и параметры бота. Правится вручную.
+# Ключевые слова при загрузке приводятся к нижнему регистру, ё -> е.
+
+criteria:
+  level_keywords: [стажер, стажёр, стажировка, intern, internship, trainee, junior, младший, начинающий]
+  direction_keywords:
+    - аналитик
+    - analyst
+    - analytics
+    - аналитика
+    - data scientist
+    - data science
+    - machine learning
+    - ml
+    - nlp
+    - computer vision
+    - cv
+    - bi
+    - product analyst
+    - ds
+  seniority_stopwords: [middle, senior, lead, ведущий, старший, главный, руководитель, head, principal]
+  excluded_role_patterns:
+    - 1с
+    - 1c
+    - бизнес-аналитик
+    - бизнес аналитик
+    - business analyst
+    - системный аналитик
+    - system analyst
+    - аналитик продаж
+    - маркетолог-аналитик
+  max_experience_years: 0
+  office_cities: [Москва, Тверь]
+  allowed_employment: [full, part, internship, project]
+
+# нормализованное имя компании -> каноническое
+company_aliases:
+  пао сбербанк: сбер
+  сбербанк: сбер
+  сбер: сбер
+  тинькофф: т-банк
+  т-банк: т-банк
+  тбанк: т-банк
+  ао тбанк: т-банк
+
+schedule:
+  every_hours: 4
+source_timeout_seconds: 120
+empty_alert_after_hours: 72
+# Вакансия, пропавшая из источника меньше чем на столько часов и вернувшаяся,
+# открывается молча (это сбой выдачи, а не новый набор). Дольше — «🔁 снова открыта».
+reopen_after_hours: 168
+
+sources:
+  hh:
+    # анонимный API hh.ru отдаёт 403; включать только с HH_ACCESS_TOKEN (приложение на dev.hh.ru)
+    enabled: false
+    per_page: 100
+    max_pages: 20
+    queries:
+      - text: 'аналитик OR analyst OR "data scientist" OR "machine learning" OR ML OR "data science"'
+        search_field: name
+        experience: noExperience
+      - text: '(стажер OR стажёр OR intern OR trainee OR стажировка) AND (аналитик OR analyst OR data OR ML)'
+        search_field: name
+  tbank:
+    enabled: true
+    categories: [tcareer_it, tcareer_back_office]
+    include_internships: true
+    limit: 100
+    max_pages: 20
+  sber:
+    enabled: true
+    # id профессиональных областей (GET /api/v1/profAreas): DS и DE, дата-сайентист,
+    # BI-аналитик/аналитик данных, IT-аналитик, продуктовый аналитик, программист.
+    # take: сервер отдаёт максимум 100; ~350 вакансий по этим областям.
+    prof_areas:
+      - 948a8e95-75fa-4184-9f10-a1fed94864f6
+      - 563b89ac-8453-43d0-a7ef-af91f6481ced
+      - d5e8b5e8-867c-4f98-b043-4732199cc58a
+      - 9b07fbb7-3259-4eb5-839c-ea14b08ad51a
+      - cb16d557-d39b-4e85-892d-172b7f1d9fe7
+      - 39d29fd5-1a53-43ae-ab6f-1eda9ce5db58
+    take: 100
+    max_pages: 10
