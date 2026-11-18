@@ -1,0 +1,776 @@
+{
+  "items": [
+    {
+      "id": "136133923",
+      "premium": false,
+      "name": "Стажер в Управление \"Аналитика и отчетность продаж среднего и малого бизнеса\", ВТБ Юниор",
+      "department": {
+        "id": "vtb-4181-smbiz",
+        "name": "Банк ВТБ (ПАО), Средний и малый бизнес"
+      },
+      "has_test": false,
+      "response_letter_required": false,
+      "area": {
+        "id": "1",
+        "name": "Москва",
+        "url": "https://api.hh.ru/areas/1"
+      },
+      "salary": {
+        "from": 81000,
+        "to": 81000,
+        "currency": "RUR",
+        "gross": true
+      },
+      "salary_range": {
+        "from": 81000,
+        "to": 81000,
+        "currency": "RUR",
+        "gross": true,
+        "mode": {
+          "id": "MONTH",
+          "name": "За месяц"
+        },
+        "frequency": {
+          "id": "TWICE_PER_MONTH",
+          "name": "Два раза в месяц"
+        }
+      },
+      "type": {
+        "id": "open",
+        "name": "Открытая"
+      },
+      "address": {
+        "city": "Москва",
+        "street": "Пресненская набережная",
+        "building": "12",
+        "lat": 55.749395,
+        "lng": 37.536967,
+        "description": null,
+        "raw": "Москва, Пресненская набережная, 12",
+        "metro": {
+          "station_name": "Деловой центр",
+          "line_name": "Солнцевская",
+          "station_id": "133.468",
+          "line_id": "133",
+          "lat": 55.7491,
+          "lng": 37.5395,
+          "hex_color": "FFCD1C"
+        },
+        "metro_stations": [
+          {
+            "station_name": "Деловой центр",
+            "line_name": "Солнцевская",
+            "station_id": "133.468",
+            "line_id": "133",
+            "lat": 55.7491,
+            "lng": 37.5395,
+            "hex_color": "FFCD1C"
+          },
+          {
+            "station_name": "Деловой центр (Выставочная)",
+            "line_name": "Филевская",
+            "station_id": "4.172",
+            "line_id": "4",
+            "lat": 55.750243,
+            "lng": 37.542641,
+            "hex_color": "1EBCEF"
+          },
+          {
+            "station_name": "Москва-Сити",
+            "line_name": "Филевская",
+            "station_id": "4.179",
+            "line_id": "4",
+            "lat": 55.748056,
+            "lng": 37.532778,
+            "hex_color": "1EBCEF"
+          }
+        ],
+        "id": "1006350"
+      },
+      "response_url": null,
+      "sort_point_distance": null,
+      "published_at": "2026-10-27T19:44:02+0300",
+      "created_at": "2026-10-27T19:44:02+0300",
+      "archived": false,
+      "branding": {
+        "type": "MAKEUP",
+        "tariff": null
+      },
+      "show_logo_in_search": true,
+      "show_contacts": false,
+      "closed_for_applicants": false,
+      "extra_labels": [],
+      "labels": [
+        {
+          "id": "vacancy-label-be-first",
+          "text": "Откликнитесь среди первых"
+        }
+      ],
+      "tags": [
+        {
+          "id": "vacancy-serp__vacancy-work-experience-noExperience",
+          "text": "Без опыта"
+        },
+        {
+          "id": "vacancy-serp__vacancy-compensation-frequency-TWICE_PER_MONTH",
+          "text": "Выплаты: Два раза в месяц"
+        }
+      ],
+      "insider_interview": null,
+      "url": "https://api.hh.ru/vacancies/136133923?host=hh.ru",
+      "alternate_url": "https://hh.ru/vacancy/136133923?tech_source=api",
+      "relations": [],
+      "employer": {
+        "id": "4181",
+        "name": "Банк ВТБ (ПАО)",
+        "url": "https://api.hh.ru/employers/4181",
+        "alternate_url": "https://hh.ru/employer/4181",
+        "logo_urls": {
+          "original": "https://img.hhcdn.ru/employer-logo-original-round/2369887.png",
+          "90": "https://img.hhcdn.ru/employer-logo-round/2369888.png",
+          "240": "https://img.hhcdn.ru/employer-logo-round/2369889.png"
+        },
+        "vacancies_url": "https://api.hh.ru/vacancies?employer_id=4181",
+        "country_id": 1,
+        "accredited_it_employer": false,
+        "trusted": true,
+        "employer_on_additional_check": false
+      },
+      "apply_alternate_url": "https://hh.ru/applicant/vacancy_response?vacancyId=136133923&tech_source=api",
+      "snippet": {
+        "requirement": "У вас будет возможность развивать навыки обработки данных (SQL, MS Excel, Python, BI) и бизнес-аналитики, ознакомиться с основной продуктовой...",
+        "responsibility": "Мы отвечаем за подготовку отчетов и аналитики по клиентам среднего и малого бизнеса Банка ВТБ, занимаемся разработкой отчетности, фиксируем фактические..."
+      },
+      "contacts": null,
+      "accept_temporary": false,
+      "fly_in_fly_out_duration": [],
+      "work_format": [
+        {
+          "id": "ON_SITE",
+          "name": "На месте работодателя"
+        }
+      ],
+      "working_hours": [
+        {
+          "id": "HOURS_8",
+          "name": "8 часов"
+        }
+      ],
+      "work_schedule_by_days": [
+        {
+          "id": "FIVE_ON_TWO_OFF",
+          "name": "5/2"
+        }
+      ],
+      "accept_labor_contract": false,
+      "civil_law_contracts": [],
+      "night_shifts": false,
+      "professional_roles": [
+        {
+          "id": "57",
+          "name": "Кредитный специалист"
+        }
+      ],
+      "accept_incomplete_resumes": false,
+      "experience": {
+        "id": "noExperience",
+        "name": "Нет опыта"
+      },
+      "employment_form": {
+        "id": "FULL",
+        "name": "Полная"
+      },
+      "internship": false,
+      "adv_response_url": null,
+      "is_adv_vacancy": false,
+      "adv_context": null
+    },
+    {
+      "id": "138791044",
+      "premium": false,
+      "name": "Стажер ВТБ Юниор по направлению розничный бизнес",
+      "department": {
+        "id": "vtb-4181-rbiz",
+        "name": "Банк ВТБ (ПАО), Розничный бизнес"
+      },
+      "has_test": false,
+      "response_letter_required": false,
+      "area": {
+        "id": "1552",
+        "name": "Шахты",
+        "url": "https://api.hh.ru/areas/1552"
+      },
+      "salary": null,
+      "salary_range": null,
+      "type": {
+        "id": "open",
+        "name": "Открытая"
+      },
+      "address": {
+        "city": "Шахты",
+        "street": "Советская улица",
+        "building": "147",
+        "lat": 47.707703,
+        "lng": 40.217387,
+        "description": null,
+        "raw": "Шахты, Советская улица, 147",
+        "metro": null,
+        "metro_stations": [],
+        "id": "14772287"
+      },
+      "response_url": null,
+      "sort_point_distance": null,
+      "published_at": "2026-11-18T11:25:39+0300",
+      "created_at": "2026-11-18T11:25:39+0300",
+      "archived": false,
+      "branding": {
+        "type": "MAKEUP",
+        "tariff": null
+      },
+      "show_logo_in_search": true,
+      "show_contacts": false,
+      "closed_for_applicants": false,
+      "extra_labels": [],
+      "labels": [
+        {
+          "id": "vacancy-label-be-first",
+          "text": "Откликнитесь среди первых"
+        }
+      ],
+      "tags": [
+        {
+          "id": "vacancy-serp__vacancy-work-experience-noExperience",
+          "text": "Без опыта"
+        }
+      ],
+      "insider_interview": null,
+      "url": "https://api.hh.ru/vacancies/138791044?host=hh.ru",
+      "alternate_url": "https://hh.ru/vacancy/138791044?tech_source=api",
+      "relations": [],
+      "employer": {
+        "id": "4181",
+        "name": "Банк ВТБ (ПАО)",
+        "url": "https://api.hh.ru/employers/4181",
+        "alternate_url": "https://hh.ru/employer/4181",
+        "logo_urls": {
+          "original": "https://img.hhcdn.ru/employer-logo-original-round/2369887.png",
+          "90": "https://img.hhcdn.ru/employer-logo-round/2369888.png",
+          "240": "https://img.hhcdn.ru/employer-logo-round/2369889.png"
+        },
+        "vacancies_url": "https://api.hh.ru/vacancies?employer_id=4181",
+        "country_id": 1,
+        "accredited_it_employer": false,
+        "trusted": true,
+        "employer_on_additional_check": false
+      },
+      "apply_alternate_url": "https://hh.ru/applicant/vacancy_response?vacancyId=138791044&tech_source=api",
+      "snippet": {
+        "requirement": "В том числе студенты 4 курса бакалавриата, 1-2 курса магистратуры и выпускники. Специализация: экономика, финансы, менеджмент, юриспруденция, гуманитарные науки. ",
+        "responsibility": "Активное участие в выполнении целевых ориентиров в офисе банка для реализации бизнес-задач."
+      },
+      "contacts": null,
+      "accept_temporary": false,
+      "fly_in_fly_out_duration": [],
+      "work_format": [
+        {
+          "id": "ON_SITE",
+          "name": "На месте работодателя"
+        }
+      ],
+      "working_hours": [
+        {
+          "id": "HOURS_8",
+          "name": "8 часов"
+        }
+      ],
+      "work_schedule_by_days": [
+        {
+          "id": "FIVE_ON_TWO_OFF",
+          "name": "5/2"
+        }
+      ],
+      "accept_labor_contract": false,
+      "civil_law_contracts": [],
+      "night_shifts": false,
+      "professional_roles": [
+        {
+          "id": "40",
+          "name": "Другое"
+        }
+      ],
+      "accept_incomplete_resumes": false,
+      "experience": {
+        "id": "noExperience",
+        "name": "Нет опыта"
+      },
+      "employment_form": {
+        "id": "FULL",
+        "name": "Полная"
+      },
+      "internship": true,
+      "adv_response_url": null,
+      "is_adv_vacancy": false,
+      "adv_context": null
+    },
+    {
+      "id": "139468338",
+      "premium": false,
+      "name": "Аналитик данных (Excel)",
+      "department": {
+        "id": "vtb-4181-teh",
+        "name": "Банк ВТБ (ПАО), Технологический блок"
+      },
+      "has_test": false,
+      "response_letter_required": false,
+      "area": {
+        "id": "131",
+        "name": "Симферополь",
+        "url": "https://api.hh.ru/areas/131"
+      },
+      "salary": null,
+      "salary_range": null,
+      "type": {
+        "id": "open",
+        "name": "Открытая"
+      },
+      "address": {
+        "city": "Симферополь",
+        "street": "Элеваторный переулок",
+        "building": "15",
+        "lat": 44.940339,
+        "lng": 34.069658,
+        "description": null,
+        "raw": "Симферополь, Элеваторный переулок, 15",
+        "metro": null,
+        "metro_stations": [],
+        "id": "18393910"
+      },
+      "response_url": null,
+      "sort_point_distance": null,
+      "published_at": "2026-11-18T14:20:08+0300",
+      "created_at": "2026-11-18T14:20:08+0300",
+      "archived": false,
+      "branding": {
+        "type": "MAKEUP",
+        "tariff": null
+      },
+      "show_logo_in_search": true,
+      "show_contacts": false,
+      "closed_for_applicants": false,
+      "extra_labels": [],
+      "labels": [
+        {
+          "id": "vacancy-label-be-first",
+          "text": "Откликнитесь среди первых"
+        }
+      ],
+      "tags": [
+        {
+          "id": "vacancy-serp__vacancy-work-experience-between1And3",
+          "text": "Опыт 1-3 года"
+        }
+      ],
+      "insider_interview": null,
+      "url": "https://api.hh.ru/vacancies/139468338?host=hh.ru",
+      "alternate_url": "https://hh.ru/vacancy/139468338?tech_source=api",
+      "relations": [],
+      "employer": {
+        "id": "4181",
+        "name": "Банк ВТБ (ПАО)",
+        "url": "https://api.hh.ru/employers/4181",
+        "alternate_url": "https://hh.ru/employer/4181",
+        "logo_urls": {
+          "original": "https://img.hhcdn.ru/employer-logo-original-round/2369887.png",
+          "90": "https://img.hhcdn.ru/employer-logo-round/2369888.png",
+          "240": "https://img.hhcdn.ru/employer-logo-round/2369889.png"
+        },
+        "vacancies_url": "https://api.hh.ru/vacancies?employer_id=4181",
+        "country_id": 1,
+        "accredited_it_employer": false,
+        "trusted": true,
+        "employer_on_additional_check": false
+      },
+      "apply_alternate_url": "https://hh.ru/applicant/vacancy_response?vacancyId=139468338&tech_source=api",
+      "snippet": {
+        "requirement": "Высшее образование. Опыт работы в кредитной организации от 1 года. Продвинутый пользователь MS Excel: сводные и умные таблицы, фильтрация, условное...",
+        "responsibility": "Подготовка отчетности на основании свода данных Excel. Проведение анализа полученных данных. Контроль и выявление ошибок в полученных результатах. "
+      },
+      "contacts": null,
+      "accept_temporary": false,
+      "fly_in_fly_out_duration": [],
+      "work_format": [
+        {
+          "id": "ON_SITE",
+          "name": "На месте работодателя"
+        }
+      ],
+      "working_hours": [
+        {
+          "id": "HOURS_8",
+          "name": "8 часов"
+        }
+      ],
+      "work_schedule_by_days": [
+        {
+          "id": "FIVE_ON_TWO_OFF",
+          "name": "5/2"
+        }
+      ],
+      "accept_labor_contract": true,
+      "civil_law_contracts": [],
+      "night_shifts": false,
+      "professional_roles": [
+        {
+          "id": "156",
+          "name": "BI-аналитик, аналитик данных"
+        }
+      ],
+      "accept_incomplete_resumes": false,
+      "experience": {
+        "id": "between1And3",
+        "name": "От 1 года до 3 лет"
+      },
+      "employment_form": {
+        "id": "FULL",
+        "name": "Полная"
+      },
+      "internship": false,
+      "adv_response_url": null,
+      "is_adv_vacancy": false,
+      "adv_context": null
+    },
+    {
+      "id": "139400969",
+      "premium": false,
+      "name": "Стажер ВТБ Юниор",
+      "department": {
+        "id": "vtb-4181-rbiz",
+        "name": "Банк ВТБ (ПАО), Розничный бизнес"
+      },
+      "has_test": false,
+      "response_letter_required": false,
+      "area": {
+        "id": "12",
+        "name": "Благовещенск (Амурская область)",
+        "url": "https://api.hh.ru/areas/12"
+      },
+      "salary": null,
+      "salary_range": null,
+      "type": {
+        "id": "open",
+        "name": "Открытая"
+      },
+      "address": {
+        "city": "Благовещенск",
+        "street": null,
+        "building": null,
+        "lat": 50.25746,
+        "lng": 127.53461,
+        "description": null,
+        "raw": "Благовещенск",
+        "metro": null,
+        "metro_stations": [],
+        "id": "19842490"
+      },
+      "response_url": null,
+      "sort_point_distance": null,
+      "published_at": "2026-11-12T07:04:06+0300",
+      "created_at": "2026-11-12T07:04:06+0300",
+      "archived": false,
+      "branding": {
+        "type": "MAKEUP",
+        "tariff": null
+      },
+      "show_logo_in_search": true,
+      "show_contacts": true,
+      "closed_for_applicants": false,
+      "extra_labels": [],
+      "labels": [
+        {
+          "id": "vacancy-label-be-first",
+          "text": "Откликнитесь среди первых"
+        }
+      ],
+      "tags": [
+        {
+          "id": "vacancy-serp__vacancy-work-experience-noExperience",
+          "text": "Без опыта"
+        }
+      ],
+      "insider_interview": null,
+      "url": "https://api.hh.ru/vacancies/139400969?host=hh.ru",
+      "alternate_url": "https://hh.ru/vacancy/139400969?tech_source=api",
+      "relations": [],
+      "employer": {
+        "id": "4181",
+        "name": "Банк ВТБ (ПАО)",
+        "url": "https://api.hh.ru/employers/4181",
+        "alternate_url": "https://hh.ru/employer/4181",
+        "logo_urls": {
+          "original": "https://img.hhcdn.ru/employer-logo-original-round/2369887.png",
+          "90": "https://img.hhcdn.ru/employer-logo-round/2369888.png",
+          "240": "https://img.hhcdn.ru/employer-logo-round/2369889.png"
+        },
+        "vacancies_url": "https://api.hh.ru/vacancies?employer_id=4181",
+        "country_id": 1,
+        "accredited_it_employer": false,
+        "trusted": true,
+        "employer_on_additional_check": false
+      },
+      "apply_alternate_url": "https://hh.ru/applicant/vacancy_response?vacancyId=139400969&tech_source=api",
+      "snippet": {
+        "requirement": "Знакомство со структурой и направлением развития в розничного бизнеса​​. Выпускники и учащиеся магистратуры и 3-го и 4-го курса...",
+        "responsibility": "Определение вектора обучения в розничном направлении: ипотека, универсальная фронт-линия, работа с привилегированными клиентами."
+      },
+      "contacts": {
+        "name": "Recruiter Name",
+        "phones": [
+          {
+            "comment": null,
+            "city": null,
+            "number": null,
+            "country": "7",
+            "formatted": null
+          }
+        ],
+        "call_tracking_enabled": true
+      },
+      "accept_temporary": false,
+      "fly_in_fly_out_duration": [],
+      "work_format": [
+        {
+          "id": "ON_SITE",
+          "name": "На месте работодателя"
+        },
+        {
+          "id": "HYBRID",
+          "name": "Гибрид"
+        }
+      ],
+      "working_hours": [
+        {
+          "id": "HOURS_8",
+          "name": "8 часов"
+        }
+      ],
+      "work_schedule_by_days": [
+        {
+          "id": "FIVE_ON_TWO_OFF",
+          "name": "5/2"
+        }
+      ],
+      "accept_labor_contract": false,
+      "civil_law_contracts": [],
+      "night_shifts": false,
+      "professional_roles": [
+        {
+          "id": "70",
+          "name": "Менеджер по продажам, менеджер по работе с клиентами"
+        }
+      ],
+      "accept_incomplete_resumes": false,
+      "experience": {
+        "id": "noExperience",
+        "name": "Нет опыта"
+      },
+      "employment_form": {
+        "id": "PART",
+        "name": "Частичная"
+      },
+      "internship": true,
+      "adv_response_url": null,
+      "is_adv_vacancy": false,
+      "adv_context": null
+    },
+    {
+      "id": "138129597",
+      "premium": false,
+      "name": "Специалист клиентского сервиса",
+      "department": {
+        "id": "vtb-4181-rskc",
+        "name": "Банк ВТБ (ПАО), Сеть и контакт-центр"
+      },
+      "has_test": false,
+      "response_letter_required": false,
+      "area": {
+        "id": "1440",
+        "name": "Анапа",
+        "url": "https://api.hh.ru/areas/1440"
+      },
+      "salary": {
+        "from": 43600,
+        "to": null,
+        "currency": "RUR",
+        "gross": true
+      },
+      "salary_range": {
+        "from": 43600,
+        "to": null,
+        "currency": "RUR",
+        "gross": true,
+        "mode": {
+          "id": "MONTH",
+          "name": "За месяц"
+        },
+        "frequency": {
+          "id": "TWICE_PER_MONTH",
+          "name": "Два раза в месяц"
+        }
+      },
+      "type": {
+        "id": "open",
+        "name": "Открытая"
+      },
+      "address": {
+        "city": "Анапа",
+        "street": null,
+        "building": null,
+        "lat": 44.894269,
+        "lng": 37.316906,
+        "description": null,
+        "raw": "Анапа",
+        "metro": null,
+        "metro_stations": [],
+        "id": "21839060"
+      },
+      "response_url": null,
+      "sort_point_distance": null,
+      "published_at": "2026-11-18T08:13:52+0300",
+      "created_at": "2026-11-18T08:13:52+0300",
+      "archived": false,
+      "branding": {
+        "type": "MAKEUP",
+        "tariff": null
+      },
+      "show_logo_in_search": true,
+      "show_contacts": true,
+      "closed_for_applicants": false,
+      "extra_labels": [],
+      "labels": [
+        {
+          "id": "vacancy-label-no-resume",
+          "text": "Можно без резюме"
+        },
+        {
+          "id": "vacancy-label-be-first",
+          "text": "Откликнитесь среди первых"
+        }
+      ],
+      "tags": [
+        {
+          "id": "vacancy-serp__vacancy-work-experience-noExperience",
+          "text": "Без опыта"
+        },
+        {
+          "id": "vacancy-label-work-schedule-remote",
+          "text": "Можно удалённо"
+        },
+        {
+          "id": "vacancy-serp__vacancy-compensation-frequency-TWICE_PER_MONTH",
+          "text": "Выплаты: Два раза в месяц"
+        }
+      ],
+      "insider_interview": null,
+      "url": "https://api.hh.ru/vacancies/138129597?host=hh.ru",
+      "alternate_url": "https://hh.ru/vacancy/138129597?tech_source=api",
+      "relations": [],
+      "employer": {
+        "id": "4181",
+        "name": "Банк ВТБ (ПАО)",
+        "url": "https://api.hh.ru/employers/4181",
+        "alternate_url": "https://hh.ru/employer/4181",
+        "logo_urls": {
+          "original": "https://img.hhcdn.ru/employer-logo-original-round/2369887.png",
+          "90": "https://img.hhcdn.ru/employer-logo-round/2369888.png",
+          "240": "https://img.hhcdn.ru/employer-logo-round/2369889.png"
+        },
+        "vacancies_url": "https://api.hh.ru/vacancies?employer_id=4181",
+        "country_id": 1,
+        "accredited_it_employer": false,
+        "trusted": true,
+        "employer_on_additional_check": false
+      },
+      "apply_alternate_url": "https://hh.ru/applicant/vacancy_response?vacancyId=138129597&tech_source=api",
+      "snippet": {
+        "requirement": "Готовность учиться и развиваться в профессиональном плане (опыт не требуется). Развитые коммуникативные навыки и стрессоустойчивость. Стремление достигать лучших результатов. ",
+        "responsibility": "Принимать звонки от клиентов банка и оказывать поддержку в режиме реального времени. Консультировать клиентов по банковским продуктам и услугам, обеспечивая..."
+      },
+      "contacts": {
+        "name": "Recruiter Name",
+        "phones": [
+          {
+            "comment": null,
+            "city": null,
+            "number": null,
+            "country": "7",
+            "formatted": null
+          }
+        ],
+        "call_tracking_enabled": true
+      },
+      "accept_temporary": false,
+      "fly_in_fly_out_duration": [],
+      "work_format": [
+        {
+          "id": "REMOTE",
+          "name": "Удалённо"
+        }
+      ],
+      "working_hours": [
+        {
+          "id": "HOURS_10",
+          "name": "10 часов"
+        },
+        {
+          "id": "HOURS_11",
+          "name": "11 часов"
+        },
+        {
+          "id": "HOURS_12",
+          "name": "12 часов"
+        }
+      ],
+      "work_schedule_by_days": [
+        {
+          "id": "FOUR_ON_THREE_OFF",
+          "name": "4/3"
+        },
+        {
+          "id": "TWO_ON_TWO_OFF",
+          "name": "2/2"
+        }
+      ],
+      "accept_labor_contract": false,
+      "civil_law_contracts": [],
+      "night_shifts": true,
+      "professional_roles": [
+        {
+          "id": "83",
+          "name": "Оператор call-центра, специалист контактного центра"
+        }
+      ],
+      "accept_incomplete_resumes": true,
+      "experience": {
+        "id": "noExperience",
+        "name": "Нет опыта"
+      },
+      "employment_form": {
+        "id": "FULL",
+        "name": "Полная"
+      },
+      "internship": false,
+      "adv_response_url": null,
+      "is_adv_vacancy": false,
+      "adv_context": null
+    }
+  ],
+  "found": 1118,
+  "pages": 56,
+  "page": 0,
+  "per_page": 20,
+  "clusters": null,
+  "arguments": null,
+  "fixes": null,
+  "suggests": null,
+  "alternate_url": "https://hh.ru/search/vacancy?employer_id=4181&enable_snippets=true&order_by=publication_time&search_field=name"
+}
