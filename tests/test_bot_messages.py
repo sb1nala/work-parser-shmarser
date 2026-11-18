@@ -71,3 +71,21 @@ def test_format_page():
     t = format_page([make(), make(id=2, title="<b>")], 12, 0)
     assert "12" in t and "&lt;b&gt;" in t
     assert format_page([], 0, 0)
+
+
+def test_format_vacancy_huge_fields_within_telegram_limit():
+    v = make(
+        company="&" * 5000, title="<" * 5000, url="http://x/?" + "&" * 9000,
+        cities=["Ё&" * 500], flags=list(["city_unknown", "format_unknown", "experience_unknown",
+                                          "employment_unknown"]), reopened=True,
+    )
+    assert len(format_vacancy(v)) <= 4096
+
+
+def test_format_page_huge_rows_within_telegram_limit():
+    rows = [
+        make(id=i, company="&" * 5000, title="<" * 5000, url="http://x/?" + "&" * 9000)
+        for i in range(10)
+    ]
+    assert len(format_page(rows, 10, 0)) <= 4096
+    assert "http://x" in format_page(rows, 10, 0)

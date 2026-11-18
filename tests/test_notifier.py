@@ -1,10 +1,10 @@
 from datetime import UTC, datetime
 
-import pytest
 from aiogram.exceptions import TelegramNetworkError, TelegramRetryAfter
 from aiogram.methods import SendMessage
 from sqlalchemy import select
 
+from vacancy_bot.bot.messages import status_keyboard
 from vacancy_bot.bot.notifier import send_unnotified
 from vacancy_bot.db.tables import VacancyRow
 
@@ -56,3 +56,16 @@ async def test_notifier_retries_after_retry_after(sm):
     assert n == 1 and len(bot.calls) == 2
     assert (await notified(sm))[0] == NOW
     assert bot.calls[0][3].get("parse_mode") == "HTML"
+
+
+async def test_notifier_sends_status_keyboard_and_logs_failure(sm, caplog):
+    await seed(sm, 1)
+    err = TelegramNetworkError(method=SendMessage(chat_id=1, text="x"), message="boom")
+    bot = FakeBot([err])
+    with caplog.at_level("ERROR"):
+        assert await send_unnotified(bot, sm, 1, lambda: NOW, delay=0) == 0
+    assert any("failed" in r.getMessage() and r.exc_info for r in caplog.records)
+    async with sm() as s:
+        vid = (await s.execute(select(VacancyRow.id))).scalar_one()
+    assert bot.calls[0][2] == status_keyboard(vid)
+    assert bot.calls[0][0] == 1
