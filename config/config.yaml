@@ -1,0 +1,65 @@
+# Критерии отбора и параметры бота. Правится вручную.
+# Ключевые слова при загрузке приводятся к нижнему регистру, ё -> е.
+
+criteria:
+  level_keywords: [стажер, стажёр, стажировка, intern, internship, trainee, junior, младший, начинающий]
+  direction_keywords:
+    - аналитик
+    - analyst
+    - analytics
+    - аналитика
+    - data scientist
+    - data science
+    - machine learning
+    - ml
+    - nlp
+    - computer vision
+    - cv
+    - bi
+    - product analyst
+    - данных
+    - ds
+  seniority_stopwords: [middle, senior, lead, ведущий, старший, главный, руководитель, head, principal]
+  excluded_role_patterns:
+    - 1с
+    - 1c
+    - бизнес-аналитик
+    - бизнес аналитик
+    - business analyst
+    - системный аналитик
+    - system analyst
+    - аналитик продаж
+    - маркетолог-аналитик
+  max_experience_years: 0
+  office_cities: [Москва, Тверь]
+  allowed_employment: [full, part, internship, project]
+
+# нормализованное имя компании -> каноническое
+company_aliases:
+  пао сбербанк: сбер
+  сбербанк: сбер
+  сбер: сбер
+  тинькофф: т-банк
+  т-банк: т-банк
+  тбанк: т-банк
+  ао тбанк: т-банк
+
+schedule:
+  every_hours: 4
+source_timeout_seconds: 120
+empty_alert_after_hours: 72
+
+sources:
+  hh:
+    per_page: 100
+    max_pages: 20
+    queries:
+      - text: 'аналитик OR analyst OR "data scientist" OR "machine learning" OR ML OR "data science"'
+        search_field: name
+        experience: noExperience
+      - text: '(стажер OR стажёр OR intern OR trainee OR стажировка) AND (аналитик OR analyst OR data OR ML)'
+        search_field: name
+  tbank:
+    enabled: true
+  sber:
+    enabled: true
