@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     owner_id: int
     database_url: str
     hh_user_agent: str
+    hh_access_token: str | None = None
     config_path: Path = Path("config/config.yaml")
 
 

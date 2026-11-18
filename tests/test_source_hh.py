@@ -94,3 +94,17 @@ async def test_sends_hh_user_agent():
     route = respx.get(URL).mock(return_value=httpx.Response(200, json=FIXTURE))
     await run(params())
     assert route.calls[0].request.headers["HH-User-Agent"] == "vacancy-bot-dev/0.1"
+
+
+@respx.mock
+async def test_access_token_sends_bearer_header():
+    route = respx.get(URL).mock(return_value=httpx.Response(200, json=FIXTURE))
+    await run(params(), access_token="secret")
+    assert route.calls[0].request.headers["Authorization"] == "Bearer secret"
+
+
+@respx.mock
+async def test_no_authorization_header_without_token():
+    route = respx.get(URL).mock(return_value=httpx.Response(200, json=FIXTURE))
+    await run(params())
+    assert "Authorization" not in route.calls[0].request.headers

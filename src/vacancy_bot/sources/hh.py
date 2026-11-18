@@ -60,12 +60,20 @@ class HHSource:
     name = "hh"
 
     def __init__(
-        self, http: httpx.AsyncClient, user_agent: str, params: dict, delay: float = 0.3
+        self,
+        http: httpx.AsyncClient,
+        user_agent: str,
+        params: dict,
+        delay: float = 0.3,
+        access_token: str | None = None,
     ) -> None:
         self._http = http
         self._user_agent = user_agent
         self._params = params
         self._delay = delay
+        self._headers = {"HH-User-Agent": user_agent}
+        if access_token:
+            self._headers["Authorization"] = f"Bearer {access_token}"
 
     async def fetch(self) -> list[Posting]:
         per_page = self._params.get("per_page", 100)
@@ -87,7 +95,7 @@ class HHSource:
                 if query.get("experience"):
                     request_params["experience"] = query["experience"]
                 resp = await self._http.get(
-                    API_URL, params=request_params, headers={"HH-User-Agent": self._user_agent}
+                    API_URL, params=request_params, headers=self._headers
                 )
                 resp.raise_for_status()
                 data = resp.json()

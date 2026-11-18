@@ -51,6 +51,8 @@ empty_alert_after_hours: 72
 
 sources:
   hh:
+    # анонимный API hh.ru отдаёт 403; включать только с HH_ACCESS_TOKEN (приложение на dev.hh.ru)
+    enabled: false
     per_page: 100
     max_pages: 20
     queries:

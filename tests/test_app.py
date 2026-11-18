@@ -1,0 +1,152 @@
+import logging
+from dataclasses import replace
+from datetime import UTC, datetime
+from pathlib import Path
+
+import httpx
+import pytest
+
+from vacancy_bot.app import run_cycle
+from vacancy_bot.config import load_config
+from vacancy_bot.db import repo
+from vacancy_bot.domain import Employment, Posting, WorkFormat
+from vacancy_bot.settings import Settings
+from vacancy_bot.sources.hh import HHSource
+from vacancy_bot.sources.registry import build_sources
+from vacancy_bot.sources.sber import SberSource
+from vacancy_bot.sources.tbank import TBankSource
+
+NOW = datetime(2026, 1, 1, tzinfo=UTC)
+
+
+@pytest.fixture(scope="module")
+def cfg():
+    return load_config(Path("config/config.yaml"))
+
+
+class FakeBot:
+    def __init__(self, fail=False):
+        self.sent: list[tuple[int, str]] = []
+        self.fail = fail
+
+    async def send_message(self, chat_id, text, **kw):
+        if self.fail:
+            raise RuntimeError("telegram down")
+        self.sent.append((chat_id, text))
+
+
+class FakeSource:
+    def __init__(self, name, result):
+        self.name = name
+        self.result = result
+
+    async def fetch(self):
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+def posting() -> Posting:
+    return Posting(
+        source="second",
+        external_id="1",
+        url="https://example.com/1",
+        company="Компания",
+        title="Стажёр-аналитик данных",
+        cities=("Москва",),
+        work_formats=frozenset({WorkFormat.HYBRID}),
+        employment=Employment.INTERNSHIP,
+        experience_years_min=0,
+        description="",
+        published_at=None,
+        raw={},
+    )
+
+
+async def mark_initialized(sm, *names):
+    async with sm() as s:
+        for n in names:
+            (await repo.get_source_state(s, n)).initialized = True
+        await s.commit()
+
+
+async def test_run_cycle_isolates_source_failures(sm, cfg):
+    await mark_initialized(sm, "first", "second")
+    bot = FakeBot()
+    sources = [FakeSource("first", RuntimeError("boom")), FakeSource("second", [posting()])]
+    await run_cycle(bot, sm, sources, cfg, 42, lambda: NOW)
+    texts = [t for _, t in bot.sent]
+    assert all(chat == 42 for chat, _ in bot.sent)
+    assert any("first" in t and "boom" in t for t in texts)
+    assert any("Стажёр-аналитик данных" in t for t in texts)
+
+
+async def test_run_cycle_survives_pipeline_bug(sm, cfg, monkeypatch):
+    await mark_initialized(sm, "second")
+    import vacancy_bot.app as app
+
+    real = app.run_source
+
+    async def flaky(sm_, src, cfg_, now):
+        if src.name == "first":
+            raise ValueError("bug in processing")
+        return await real(sm_, src, cfg_, now)
+
+    monkeypatch.setattr(app, "run_source", flaky)
+    bot = FakeBot()
+    sources = [FakeSource("first", []), FakeSource("second", [posting()])]
+    await run_cycle(bot, sm, sources, cfg, 42, lambda: NOW)
+    texts = [t for _, t in bot.sent]
+    assert any("first" in t and "ValueError: bug in processing" in t for t in texts)
+    assert any("Стажёр-аналитик данных" in t for t in texts)
+
+
+async def test_run_cycle_sends_quiet_summary(sm, cfg):
+    bot = FakeBot()
+    await run_cycle(bot, sm, [FakeSource("second", [posting()])], cfg, 42, lambda: NOW)
+    assert len(bot.sent) == 1
+    assert "second" in bot.sent[0][1]
+
+
+async def test_run_cycle_telegram_failure_does_not_crash(sm, cfg, caplog):
+    await mark_initialized(sm, "first")
+    bot = FakeBot(fail=True)
+    with caplog.at_level(logging.ERROR):
+        await run_cycle(bot, sm, [FakeSource("first", RuntimeError("boom"))], cfg, 42, lambda: NOW)
+    assert "telegram down" in caplog.text
+
+
+# --- registry ---
+
+
+def settings(token=None) -> Settings:
+    return Settings(
+        bot_token="t", owner_id=1, database_url="x", hh_user_agent="ua", hh_access_token=token,
+        _env_file=None,
+    )
+
+
+async def names(cfg, token=None):
+    async with httpx.AsyncClient() as http:
+        return [type(s) for s in build_sources(cfg, http, settings(token))]
+
+
+async def test_registry_default_config_skips_hh(cfg):
+    assert await names(cfg) == [TBankSource, SberSource]
+
+
+async def test_registry_hh_enabled_with_token(cfg):
+    on = replace(cfg, sources={**cfg.sources, "hh": {**cfg.sources["hh"], "enabled": True}})
+    assert await names(on, "tok") == [HHSource, TBankSource, SberSource]
+
+
+async def test_registry_hh_enabled_without_token_warns(cfg, caplog):
+    on = replace(cfg, sources={**cfg.sources, "hh": {**cfg.sources["hh"], "enabled": True}})
+    with caplog.at_level(logging.WARNING):
+        assert await names(on) == [TBankSource, SberSource]
+    assert "HH_ACCESS_TOKEN" in caplog.text
+
+
+async def test_registry_respects_disabled(cfg):
+    off = replace(cfg, sources={**cfg.sources, "sber": {**cfg.sources["sber"], "enabled": False}})
+    assert await names(off) == [TBankSource]
