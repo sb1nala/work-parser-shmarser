@@ -15,6 +15,18 @@ def test_load_shipped_config():
     assert "стажёр" not in cfg.criteria.level_keywords
 
 
+def test_shipped_hh_queries_are_narrowed():
+    # hh caps a search at 2000 results; every shipped query is limited to the owner's
+    # regions or to remote work so it stays under the cap
+    queries = load_config(Path("config/config.yaml")).sources["hh"]["queries"]
+    assert queries
+    for q in queries:
+        assert q["text"]
+        assert q.get("area") == [1, 1783] or q.get("work_format") == "REMOTE"
+        assert q["order_by"] == "publication_time"
+    assert {q.get("work_format") for q in queries} == {None, "REMOTE"}
+
+
 def test_reopen_window(tmp_path):
     cfg = load_config(Path("config/config.yaml"))
     assert cfg.reopen_after_hours == 168
