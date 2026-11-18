@@ -120,12 +120,45 @@ async def test_dedups_ids_across_pages():
 
 
 @respx.mock
-async def test_stops_at_max_pages():
-    route = respx.post(URL).mock(
-        return_value=httpx.Response(200, json=page(ITEMS[:1], 1, False, total=99))
-    )
-    await run(params(max_pages=3))
+async def test_raises_when_max_pages_exhausted():
+    pages = [page(ITEMS[i : i + 1], i + 1, False, total=99) for i in range(3)]
+    route = respx.post(URL).mock(side_effect=[httpx.Response(200, json=p) for p in pages])
+    with pytest.raises(RuntimeError, match="max_pages"):
+        await run(params(max_pages=3))
     assert route.call_count == 3
+
+
+@respx.mock
+async def test_raises_on_non_advancing_offset():
+    route = respx.post(URL).mock(
+        return_value=httpx.Response(200, json=page(ITEMS[:1], 0, False, total=99))
+    )
+    with pytest.raises(RuntimeError, match="did not advance"):
+        await run(params())
+    assert route.call_count == 1
+
+
+@respx.mock
+async def test_raises_on_non_json_200():
+    respx.post(URL).mock(return_value=httpx.Response(200, text="<html>captcha</html>"))
+    with pytest.raises(RuntimeError, match="malformed"):
+        await run(params())
+
+
+@respx.mock
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"resultCode": "OK", "payload": None},
+        {"resultCode": "OK", "payload": {"vacancies": []}},
+        {"resultCode": "OK", "payload": {"vacancies": [{"title": "x"}], "nextPagination": {}}},
+        [1, 2],
+    ],
+)
+async def test_raises_on_malformed_payload(body):
+    respx.post(URL).mock(return_value=httpx.Response(200, json=body))
+    with pytest.raises(RuntimeError, match="malformed"):
+        await run(params())
 
 
 @respx.mock

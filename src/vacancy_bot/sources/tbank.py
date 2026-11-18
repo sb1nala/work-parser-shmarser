@@ -110,15 +110,31 @@ class TBankSource:
                 },
             )
             resp.raise_for_status()
-            data = resp.json()
-            if data.get("resultCode") != "OK":
-                raise RuntimeError(f"T-Bank getVacancies failed: {data.get('resultCode')}")
-            payload = data["payload"]
-            for item in payload["vacancies"]:
-                posting = _map(item)
+            try:
+                data = resp.json()
+                if data.get("resultCode") != "OK":
+                    raise ValueError(f"resultCode {data.get('resultCode')!r}")
+                payload = data["payload"]
+                items = payload["vacancies"]
+                finished = bool(payload["nextPagination"]["isFinished"])
+                next_offset = payload["nextPagination"]["offset"]
+                postings = [_map(item) for item in items]
+            except (ValueError, KeyError, TypeError, AttributeError) as exc:
+                raise RuntimeError(
+                    f"tbank: malformed getVacancies response at offset {offset}: "
+                    f"{type(exc).__name__}: {str(exc)[:100]}"
+                ) from exc
+            for posting in postings:
                 found.setdefault(posting.external_id, posting)
-            pagination = payload["nextPagination"]
-            if pagination["isFinished"] or not payload["vacancies"]:
-                break
-            offset = pagination["offset"]
-        return list(found.values())
+            if finished:
+                return list(found.values())
+            if not isinstance(next_offset, int) or next_offset <= offset:
+                raise RuntimeError(
+                    f"tbank: pagination did not advance at offset {offset} "
+                    f"(next offset {next_offset!r})"
+                )
+            offset = next_offset
+        raise RuntimeError(
+            f"tbank: not finished after max_pages={max_pages} (offset {offset}); "
+            "raise sources.tbank.max_pages/limit"
+        )
