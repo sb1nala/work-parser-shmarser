@@ -161,3 +161,24 @@ async def test_run_cycle_commits_health_state(sm, cfg):
     async with sm() as fresh:
         assert (await repo.get_source_state(fresh, "first")).failing is True
     assert sum("first" in t and "boom" in t for _, t in bot.sent) == 1
+
+
+async def test_tbank_client_trusts_russian_root_ca(cfg):
+    from vacancy_bot.sources.registry import RUSSIAN_ROOT_CA, make_tbank_client
+
+    assert RUSSIAN_ROOT_CA.exists()
+    async with make_tbank_client() as client:
+        ctx = client._transport._pool._ssl_context
+        subjects = [dict(x[0] for x in c["subject"]) for c in ctx.get_ca_certs()]
+    assert any(s.get("commonName") == "Russian Trusted Root CA" for s in subjects)
+    assert len(subjects) > 50  # certifi bundle is still loaded
+
+
+async def test_only_tbank_gets_dedicated_client(cfg):
+    on = replace(cfg, sources={**cfg.sources, "hh": {**cfg.sources["hh"], "enabled": True}})
+    async with httpx.AsyncClient() as shared, httpx.AsyncClient() as tb:
+        built = build_sources(on, shared, settings("tok"), tb)
+        clients = {type(s): s._http for s in built}
+    assert clients[TBankSource] is tb
+    assert clients[HHSource] is shared
+    assert clients[SberSource] is shared

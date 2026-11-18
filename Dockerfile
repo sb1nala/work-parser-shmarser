@@ -16,6 +16,7 @@ COPY alembic.ini ./
 COPY migrations ./migrations
 COPY src ./src
 COPY config ./config
+COPY certs ./certs
 RUN uv sync --frozen --no-dev
 
 CMD ["sh", "-c", "alembic upgrade head && python -m vacancy_bot.app"]
