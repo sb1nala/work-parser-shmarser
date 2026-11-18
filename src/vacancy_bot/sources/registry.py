@@ -11,6 +11,7 @@ from vacancy_bot.sources.base import Source
 from vacancy_bot.sources.hh import HHSource
 from vacancy_bot.sources.sber import SberSource
 from vacancy_bot.sources.tbank import TBankSource
+from vacancy_bot.sources.vtb import VTBSource
 
 log = logging.getLogger(__name__)
 
@@ -48,4 +49,7 @@ def build_sources(
     sber = cfg.sources.get("sber")
     if sber and sber.get("enabled"):
         sources.append(SberSource(http, sber))
+    vtb = cfg.sources.get("vtb")
+    if vtb and vtb.get("enabled"):
+        sources.append(VTBSource(http, vtb))  # backend.honeyleads.ru verifies with certifi
     return sources

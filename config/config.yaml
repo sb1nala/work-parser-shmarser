@@ -42,6 +42,9 @@ company_aliases:
   т-банк: т-банк
   тбанк: т-банк
   ао тбанк: т-банк
+  втб: втб
+  банк втб: втб
+  банк втб (пао): втб
 
 schedule:
   every_hours: 4
@@ -102,4 +105,14 @@ sources:
       - cb16d557-d39b-4e85-892d-172b7f1d9fe7
       - 39d29fd5-1a53-43ae-ab6f-1eda9ce5db58
     take: 100
+    max_pages: 10
+  vtb:
+    enabled: true
+    # лента hh.ru работодателя «Банк ВТБ» с rabota-vtb.ru (страница — 20 вакансий, per_page
+    # сервер игнорирует). Без фильтров ~1100 вакансий (56 страниц), в основном розница и
+    # колл-центры, поэтому запросы сужены по названию (язык запросов hh: OR, "фразы").
+    # Работают только text и experience; ё/е равнозначны.
+    queries:
+      - text: 'стажер OR стажёр OR стажировка OR intern OR trainee OR юниор'
+      - text: 'аналитик OR аналитика OR analyst OR analytics OR data OR ML OR "machine learning"'
     max_pages: 10

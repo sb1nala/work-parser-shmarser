@@ -15,6 +15,7 @@ from vacancy_bot.sources.hh import HHSource
 from vacancy_bot.sources.registry import build_sources
 from vacancy_bot.sources.sber import SberSource
 from vacancy_bot.sources.tbank import TBankSource
+from vacancy_bot.sources.vtb import VTBSource
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
@@ -132,24 +133,24 @@ async def names(cfg, token=None):
 
 
 async def test_registry_default_config_skips_hh(cfg):
-    assert await names(cfg) == [TBankSource, SberSource]
+    assert await names(cfg) == [TBankSource, SberSource, VTBSource]
 
 
 async def test_registry_hh_enabled_with_token(cfg):
     on = replace(cfg, sources={**cfg.sources, "hh": {**cfg.sources["hh"], "enabled": True}})
-    assert await names(on, "tok") == [HHSource, TBankSource, SberSource]
+    assert await names(on, "tok") == [HHSource, TBankSource, SberSource, VTBSource]
 
 
 async def test_registry_hh_enabled_without_token_warns(cfg, caplog):
     on = replace(cfg, sources={**cfg.sources, "hh": {**cfg.sources["hh"], "enabled": True}})
     with caplog.at_level(logging.WARNING):
-        assert await names(on) == [TBankSource, SberSource]
+        assert await names(on) == [TBankSource, SberSource, VTBSource]
     assert "HH_ACCESS_TOKEN" in caplog.text
 
 
 async def test_registry_respects_disabled(cfg):
     off = replace(cfg, sources={**cfg.sources, "sber": {**cfg.sources["sber"], "enabled": False}})
-    assert await names(off) == [TBankSource]
+    assert await names(off) == [TBankSource, VTBSource]
 
 
 async def test_run_cycle_commits_health_state(sm, cfg):
@@ -182,6 +183,12 @@ async def test_only_tbank_gets_dedicated_client(cfg):
     assert clients[TBankSource] is tb
     assert clients[HHSource] is shared
     assert clients[SberSource] is shared
+    assert clients[VTBSource] is shared
+
+
+async def test_registry_respects_disabled_vtb(cfg):
+    off = replace(cfg, sources={**cfg.sources, "vtb": {**cfg.sources["vtb"], "enabled": False}})
+    assert await names(off) == [TBankSource, SberSource]
 
 
 async def test_alert_not_persisted_when_send_fails_and_retried(sm, cfg):
