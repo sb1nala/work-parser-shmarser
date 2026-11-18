@@ -57,12 +57,32 @@ sources:
     enabled: false
     per_page: 100
     max_pages: 20
+    # hh отдаёт по запросу не больше 2000 вакансий; если found больше (или страниц больше
+    # max_pages), источник падает с ошибкой, а не отдаёт обрезанный список — иначе
+    # пропавшие из выдачи вакансии закрылись бы. Поэтому запросы сужены: офис/гибрид —
+    # только Москва (area 1) и Тверская область (area 1783, id из GET /areas), плюс
+    # удалёнка по всей стране (work_format REMOTE). Ошибка «narrow the query» в логе
+    # значит, что запрос пора дробить дальше (например, Москву отдельно от области).
+    # Ключи запроса уходят в API как есть; search_field по умолчанию name.
     queries:
-      - text: 'аналитик OR analyst OR "data scientist" OR "machine learning" OR ML OR "data science"'
+      - text: &junior_text 'аналитик OR analyst OR "data scientist" OR "machine learning" OR ML OR "data science"'
         search_field: name
         experience: noExperience
-      - text: '(стажер OR стажёр OR intern OR trainee OR стажировка) AND (аналитик OR analyst OR data OR ML)'
+        area: [1, 1783]
+        order_by: publication_time
+      - text: *junior_text
         search_field: name
+        experience: noExperience
+        work_format: REMOTE
+        order_by: publication_time
+      - text: &intern_text '(стажер OR стажёр OR intern OR trainee OR стажировка) AND (аналитик OR analyst OR data OR ML)'
+        search_field: name
+        area: [1, 1783]
+        order_by: publication_time
+      - text: *intern_text
+        search_field: name
+        work_format: REMOTE
+        order_by: publication_time
   tbank:
     enabled: true
     categories: [tcareer_it, tcareer_back_office]
