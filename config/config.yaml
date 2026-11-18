@@ -61,5 +61,9 @@ sources:
         search_field: name
   tbank:
     enabled: true
+    categories: [tcareer_it, tcareer_back_office]
+    include_internships: true
+    limit: 100
+    max_pages: 20
   sber:
     enabled: true

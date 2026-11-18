@@ -1,0 +1,115 @@
+{
+  "resultCode": "OK",
+  "payload": {
+    "vacancies": [
+      {
+        "title": "Исполнитель по поиску и взысканию автомобилей",
+        "subtitle": "Мурманск",
+        "category": "tcareer_back_office",
+        "regionId": "b7127184-ead6-422b-b7cf-4fc7725b47a5",
+        "shortDescription": "Контролируйте и сопровождайте взыскание транспортных средств",
+        "cities": [
+          ""
+        ],
+        "tags": [
+          "Разъездной",
+          "1 – 5 лет",
+          "Свободный"
+        ],
+        "urlSlug": "6d1501bf-4585-41c5-afea-a3b8ca05c071",
+        "seoSlug": "ispolnitel-po-poisku-i-vzyskaniu-avtomobiley",
+        "source": "publisher",
+        "backend": "publisher",
+        "redirectUrl": null,
+        "isPredstavitel": false
+      },
+      {
+        "title": "Стажер BPM-аналитик",
+        "category": "tcareer_it",
+        "regionId": null,
+        "shortDescription": "Для стратегов, которые готовы помогать бизнесу быстрее меняться, точнее работать и осознаннее принимать решения.",
+        "cities": [
+          ""
+        ],
+        "tags": [
+          "Стажер",
+          "Без опыта",
+          "5/2"
+        ],
+        "urlSlug": "e071a143-af33-4560-bf08-252e50715a40",
+        "seoSlug": null,
+        "source": "publisher",
+        "backend": "publisher",
+        "redirectUrl": "https://l.tbank.ru/vac_analyst",
+        "isPredstavitel": false
+      },
+      {
+        "title": "Стажер финансовый аналитик",
+        "category": "tcareer_back_office",
+        "regionId": null,
+        "shortDescription": "Для тех, кто умеет принимать решения на основе анализа данных",
+        "cities": [
+          ""
+        ],
+        "tags": [
+          "Стажер",
+          "Гибрид",
+          "Без опыта",
+          "5/2"
+        ],
+        "urlSlug": "b8b28b4a-6e45-4de9-b89b-ac43e51110c4",
+        "seoSlug": null,
+        "source": "publisher",
+        "backend": "publisher",
+        "redirectUrl": "https://l.tbank.ru/vac_analyst",
+        "isPredstavitel": false
+      },
+      {
+        "title": "Продуктовый аналитик DS",
+        "category": "tcareer_it",
+        "regionId": null,
+        "shortDescription": "Развивайте алгоритмы ранжирования и помогайте клиентам находить подходящие возможности для заработка",
+        "cities": [
+          ""
+        ],
+        "tags": [
+          "Middle",
+          "Senior",
+          "5/2"
+        ],
+        "urlSlug": "7ecbf3c9-9643-4b5e-b38b-2587b135729b",
+        "seoSlug": "produktovyi-analitik-ds",
+        "source": "publisher",
+        "backend": "publisher",
+        "redirectUrl": null,
+        "isPredstavitel": false
+      },
+      {
+        "title": "Специалист технической поддержки Авто.ру Бизнес",
+        "subtitle": "Ростов-на-Дону",
+        "category": "tcareer_back_office",
+        "regionId": "c1cfe4b9-f7c2-423c-abfa-6ed1c05a15c5",
+        "shortDescription": "Помогайте пользователям Авто.ру Бизнес решать вопросы по работе платформы",
+        "cities": [
+          ""
+        ],
+        "tags": [
+          "Удаленный",
+          "До года",
+          "5/2"
+        ],
+        "urlSlug": "08bb9b62-c852-4361-a4e7-ceb5c145105b",
+        "seoSlug": "specialist-tehnicheskoy-podderzhki-avto.ru-biznes",
+        "source": "publisher",
+        "backend": "publisher",
+        "redirectUrl": null,
+        "isPredstavitel": false
+      }
+    ],
+    "nextPagination": {
+      "offset": 5,
+      "isFinished": true,
+      "totalCount": 5
+    }
+  }
+}
