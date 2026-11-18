@@ -10,7 +10,7 @@ import pytest_asyncio  # noqa: E402
 from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine  # noqa: E402
-from testcontainers.postgres import PostgresContainer  # noqa: E402
+from testcontainers.community.postgres import PostgresContainer  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 
