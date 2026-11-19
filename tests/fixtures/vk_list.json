@@ -1,0 +1,170 @@
+{
+ "count": 14,
+ "next": null,
+ "previous": null,
+ "results": [
+  {
+   "id": 46221,
+   "prof_area": {
+    "id": 31,
+    "name": "Аналитика"
+   },
+   "group": {
+    "id": 14,
+    "name": "ОК",
+    "project_logo": "https://corp.vkcdn.ru/media_s3/corp-site-prod/images/groups/2026/10/ok_orange_compact-512.png"
+   },
+   "title": "Продуктовый аналитик",
+   "town": {
+    "id": 1,
+    "name": "Москва"
+   },
+   "work_format": "гибкий",
+   "tags": [
+    {
+     "id": 2405,
+     "name": "analytics"
+    }
+   ],
+   "remote": true,
+   "external_program": false,
+   "external_bonus": null,
+   "specialty": {
+    "id": 295,
+    "name": "Продуктовая аналитика"
+   }
+  },
+  {
+   "id": 45797,
+   "prof_area": {
+    "id": 31,
+    "name": "Аналитика"
+   },
+   "group": {
+    "id": 366,
+    "name": "MAX",
+    "project_logo": "https://corp.vkcdn.ru/media_s3/corp-site-prod/images/groups/2026/10/icon-light-1024x1024.png"
+   },
+   "title": "Продуктовый аналитик",
+   "town": {
+    "id": 1,
+    "name": "Москва"
+   },
+   "work_format": "Комбинированный",
+   "tags": [
+    {
+     "id": 2221,
+     "name": "python"
+    },
+    {
+     "id": 2407,
+     "name": "SQL"
+    }
+   ],
+   "remote": false,
+   "external_program": false,
+   "external_bonus": null,
+   "specialty": {
+    "id": 295,
+    "name": "Продуктовая аналитика"
+   }
+  },
+  {
+   "id": 55147,
+   "prof_area": {
+    "id": 31,
+    "name": "Аналитика"
+   },
+   "group": {
+    "id": 296,
+    "name": "VK Музыка",
+    "project_logo": "https://corp.vkcdn.ru/media_s3/corp-site-prod/images/groups/2026/10/musicon.png"
+   },
+   "title": "Старший продуктовый аналитик",
+   "town": {
+    "id": 1,
+    "name": "Москва"
+   },
+   "work_format": "Дистанционный",
+   "tags": [
+    {
+     "id": 2405,
+     "name": "analytics"
+    }
+   ],
+   "remote": true,
+   "external_program": false,
+   "external_bonus": null,
+   "specialty": {
+    "id": 295,
+    "name": "Продуктовая аналитика"
+   }
+  },
+  {
+   "id": 55367,
+   "prof_area": {
+    "id": 31,
+    "name": "Аналитика"
+   },
+   "group": {
+    "id": 26,
+    "name": "Медиапроекты",
+    "project_logo": "https://corp.vkcdn.ru/media_s3/corp-site-prod/images/groups/2026/10/mail_ezgafm1.png"
+   },
+   "title": "Аналитик",
+   "town": {
+    "id": 1,
+    "name": "Москва"
+   },
+   "work_format": "гибкий",
+   "tags": [
+    {
+     "id": 2405,
+     "name": "analytics"
+    }
+   ],
+   "remote": true,
+   "external_program": false,
+   "external_bonus": null,
+   "specialty": {
+    "id": 295,
+    "name": "Продуктовая аналитика"
+   }
+  },
+  {
+   "id": 55615,
+   "prof_area": {
+    "id": 31,
+    "name": "Аналитика"
+   },
+   "group": {
+    "id": 51,
+    "name": "VK Реклама",
+    "project_logo": "https://corp.vkcdn.ru/media_s3/corp-site-prod/images/groups/2026/10/icon_logo.png"
+   },
+   "title": "Старший продуктовый аналитик",
+   "town": {
+    "id": 1,
+    "name": "Москва"
+   },
+   "work_format": "гибкий",
+   "tags": [
+    {
+     "id": 2405,
+     "name": "analytics"
+    },
+    {
+     "id": 2407,
+     "name": "SQL"
+    }
+   ],
+   "remote": true,
+   "external_program": false,
+   "external_bonus": null,
+   "specialty": {
+    "id": 295,
+    "name": "Продуктовая аналитика"
+   }
+  }
+ ]
+}

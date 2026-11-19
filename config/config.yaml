@@ -148,6 +148,21 @@ sources:
     pro_levels: [intern, junior]
     page_size: 40
     max_pages: 10
+  vk:
+    enabled: true
+    # team.vk.company/career/api/v2/vacancies (открытый JSON, без токенов): ~230 вакансий целиком,
+    # поэтому запрос сужен специальностями (сервер принимает одну specialty за запрос, значит
+    # по запросу на каждую; id из фильтра на team.vk.company/vacancy): 268 BI аналитика,
+    # 269 Data-аналитика, 281 Data Science, 283 Machine Learning, 295 Продуктовая аналитика,
+    # 316 Бизнес-аналитика (~47 вакансий). Уровень и описание есть только на странице
+    # team.vk.company/vacancy/<id>/, поэтому на каждую вакансию делается один запрос страницы.
+    # portal_pages: стажировки и junior-вакансии internship.vk.company (список зашит в
+    # __NEXT_DATA__ страницы, отдельного API нет): /internship и /vacancy (пока пусто);
+    # пустой список отключает портал. page_size: сервер отдаёт максимум 50.
+    specialties: [268, 269, 281, 283, 295, 316]
+    page_size: 50
+    max_pages: 10
+    portal_pages: [internship, vacancy]
   telegram:
     enabled: true
     # публичное превью каналов https://t.me/s/<канал> (без токенов): посты за последние

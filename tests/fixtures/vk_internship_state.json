@@ -1,0 +1,194 @@
+{
+ "props": {
+  "pageProps": {
+   "page": {
+    "vacancies": [
+     {
+      "id": 1480,
+      "title": "Python developer",
+      "business_unit": 263,
+      "direction": 5,
+      "city": "Любой",
+      "format": "remote",
+      "employment": "full_time",
+      "skills": [],
+      "date_work_starts": "ноябрь 2026",
+      "date_work_ends": "апрель 2027",
+      "is_opened": true,
+      "internship_type": "internship",
+      "for_only_students": false
+     },
+     {
+      "id": 1479,
+      "title": "Специалист технической поддержки L1",
+      "business_unit": 263,
+      "direction": 18,
+      "city": "Любой",
+      "format": "remote",
+      "employment": "full_time",
+      "skills": [
+       240
+      ],
+      "date_work_starts": "ноябрь 2026",
+      "date_work_ends": "апрель 2027",
+      "is_opened": true,
+      "internship_type": "internship",
+      "for_only_students": false
+     },
+     {
+      "id": 1477,
+      "title": "Инженер по ручному тестированию",
+      "business_unit": 263,
+      "direction": 12,
+      "city": "Любой",
+      "format": "remote",
+      "employment": "full_time",
+      "skills": [],
+      "date_work_starts": "ноябрь 2026",
+      "date_work_ends": "апрель 2027",
+      "is_opened": true,
+      "internship_type": "internship",
+      "for_only_students": false
+     },
+     {
+      "id": 1476,
+      "title": "Fullstack-разработчик",
+      "business_unit": 263,
+      "direction": 5,
+      "city": "Москва",
+      "format": "hybrid",
+      "employment": "full_time",
+      "skills": [],
+      "date_work_starts": "ноябрь 2026",
+      "date_work_ends": "апрель 2027",
+      "is_opened": true,
+      "internship_type": "internship",
+      "for_only_students": false
+     },
+     {
+      "id": 1471,
+      "title": "ML-инженер",
+      "business_unit": 330,
+      "direction": 4,
+      "city": "Москва",
+      "format": "hybrid",
+      "employment": "full_time",
+      "skills": [
+       334,
+       513,
+       1853,
+       2638,
+       2751,
+       2776,
+       2778,
+       2785,
+       2786
+      ],
+      "date_work_starts": "ноябрь 2026",
+      "date_work_ends": "апрель 2027",
+      "is_opened": true,
+      "internship_type": "internship",
+      "for_only_students": false
+     }
+    ],
+    "units": [
+     {
+      "id": 263,
+      "name": "VK Tech",
+      "order": 100,
+      "logo": "https://internship.vk.company/static/core/priv/default/img/placeholder_vk_200.png",
+      "alt_logo": "https://internship.vk.company/static/core/priv/default/img/placeholder_vk_white.png"
+     },
+     {
+      "id": 330,
+      "name": "Блок AI",
+      "order": 100,
+      "logo": "https://internship.vk.company/static/core/priv/default/img/placeholder_vk_200.png",
+      "alt_logo": "https://internship.vk.company/static/core/priv/default/img/placeholder_vk_white.png"
+     }
+    ],
+    "directions": [
+     {
+      "id": 5,
+      "name": "Разработка",
+      "order": 1,
+      "skills": [
+       318,
+       534,
+       535,
+       1844,
+       1845,
+       1873,
+       1874
+      ],
+      "card_order": 1,
+      "is_landing_card": true,
+      "color": "blue"
+     },
+     {
+      "id": 4,
+      "name": "Машинное обучение",
+      "order": 3,
+      "skills": [],
+      "card_order": 4,
+      "is_landing_card": true,
+      "color": "violet"
+     },
+     {
+      "id": 12,
+      "name": "Тестирование",
+      "order": 5,
+      "skills": [],
+      "card_order": 8,
+      "is_landing_card": true,
+      "color": "violet"
+     },
+     {
+      "id": 18,
+      "name": "Инфраструктура",
+      "order": 6,
+      "skills": [
+       96,
+       1888
+      ],
+      "card_order": 3,
+      "is_landing_card": true,
+      "color": "pink"
+     }
+    ],
+    "skills": {
+     "240": {
+      "name": "Linux"
+     },
+     "334": {
+      "name": "Python"
+     },
+     "513": {
+      "name": "PyTorch"
+     },
+     "1853": {
+      "name": "C++"
+     },
+     "2638": {
+      "name": "YTSaurus"
+     },
+     "2751": {
+      "name": "YQL"
+     },
+     "2776": {
+      "name": "VLLM"
+     },
+     "2778": {
+      "name": "TensorRT"
+     },
+     "2785": {
+      "name": "verl"
+     },
+     "2786": {
+      "name": "Nvidia Triton Inference Server"
+     }
+    }
+   }
+  }
+ }
+}
