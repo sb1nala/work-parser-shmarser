@@ -484,3 +484,37 @@ async def test_paces_requests(monkeypatch):
 async def test_all_directions_scanned_when_none_kept():
     mock_simple({"analitika-dannykh": [item(url_id=7)]})
     assert await run(params(directions=["analitika-dannykh"], keep_directions=[])) == []
+
+
+@respx.mock
+async def test_raises_when_a_card_loses_its_id_attribute():
+    cards = [item(vid=1, url_id=1), item(vid=2, url_id=2).replace(' data-vacancy-id="2"', "")]
+    mock_simple({"analitika-dannykh": cards}, counts={"Аналитика данных": 2})
+    with pytest.raises(RuntimeError, match="avito: malformed direction page.*layout"):
+        await run(params(directions=["analitika-dannykh"]))
+
+
+@respx.mock
+async def test_raises_when_configured_section_has_count_but_no_cards():
+    mock_simple(
+        {"analitika-dannykh": [item(url_id=7)], "razrabotka": []},
+        counts={"Аналитика данных": 1, "Разработка": 15},
+        details={"/vacancies/analitika-dannykh/7/": job_page()},
+    )
+    cfg = params(sections={"analitika-dannykh": "Аналитика данных", "razrabotka": "Разработка"})
+    with pytest.raises(RuntimeError, match="Разработка.*0.*15"):
+        await run(cfg)
+
+
+@respx.mock
+async def test_section_of_unconfigured_direction_is_skipped():
+    mock_simple(
+        {"analitika-dannykh": [item(url_id=7)]},
+        counts={"Аналитика данных": 1, "Продажи": 33},  # prodazhi is not a configured direction
+        details={"/vacancies/analitika-dannykh/7/": job_page()},
+    )
+    cfg = params(
+        directions=["analitika-dannykh"],
+        sections={"analitika-dannykh": "Аналитика данных", "prodazhi": "Продажи"},
+    )
+    assert len(await run(cfg)) == 1

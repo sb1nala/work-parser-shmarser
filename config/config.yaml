@@ -197,6 +197,25 @@ sources:
       - klientskiy-servis
       - logistika
       - upravlenie-biznes-protsessami
+    # sections: slug направления -> название раздела на /vacancies/ (его счётчик сверяется с числом
+    # найденных вакансий; у пустых направлений раздела на главной нет).
+    sections:
+      prodazhi: Продажи
+      razrabotka: Разработка
+      analitika-dannykh: Аналитика данных
+      marketing: Маркетинг
+      data-science: Data Science
+      upravlenie-produktom: Управление продуктом
+      hr: HR
+      pr: PR
+      razvitie-biznesa: Развитие бизнеса
+      finansy-zakupki-i-audit: Финансы, закупки и аудит
+      ux-issledovaniya: UX-исследования
+      ux-redaktsiya: UX-редакция
+      informatsionnaya-bezopasnost: Информационная безопасность
+      strategiya-i-m-a: Стратегия и M&A
+      tekhpodderzhka: Техподдержка
+      yurisprudentsiya-i-gr: Юриспруденция и GR
     # require_level_keyword: без слова уровня в названии, стажировки и нулевого опыта вакансия
     # отсеивается (опыт у Авито виден только в свободном тексте, иначе шли бы все мид/сеньор).
     require_level_keyword: true

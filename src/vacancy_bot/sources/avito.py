@@ -106,7 +106,7 @@ def _attr(card: Tag, name: str) -> str:
     return value.strip()
 
 
-def _parse_card(card: Tag, slug: str) -> dict:
+def _parse_card(card: Tag) -> dict:
     internal_id = _attr(card, "data-vacancy-id")
     if not internal_id.isdigit():
         raise ValueError(f"data-vacancy-id {internal_id!r} is not a number")
@@ -145,6 +145,8 @@ def _parse_card(card: Tag, slug: str) -> dict:
 def _json_ld(soup: BeautifulSoup) -> dict:
     """The JobPosting object of a vacancy page."""
     for script in soup.find_all("script", attrs={"type": "application/ld+json"}):
+        # deliberate: a broken block of any kind (even a non-JobPosting one) fails the fetch
+        # loudly; the pages are machine-generated, so garbage there means the layout changed
         data = json.loads(script.string or script.get_text())
         for obj in data if isinstance(data, list) else [data]:
             kind = obj.get("@type") if isinstance(obj, dict) else None
@@ -244,15 +246,20 @@ class AvitoSource:
         resp = await self._get(f"{LIST_URL}{slug}/")
         try:
             soup = BeautifulSoup(resp.text, "html.parser")
-            cards = soup.find_all(attrs={"data-vacancy-id": True})
-            if not cards:
-                has_links = any(
-                    _VACANCY_HREF.match(str(a["href"])) for a in soup.find_all("a", href=True)
+            cards = [_parse_card(c) for c in soup.find_all(attrs={"data-vacancy-id": True})]
+            linked = {
+                m.group(2)
+                for a in soup.find_all("a", href=True)
+                if (m := _VACANCY_HREF.match(str(a["href"])))
+            }
+            if linked != {c["url_id"] for c in cards}:
+                # a card that lost its data-vacancy-id would otherwise be dropped silently
+                raise ValueError(
+                    f"{len(linked)} vacancy links but {len(cards)} parsed cards "
+                    "(page layout changed?)"
                 )
-                if has_links:
-                    raise ValueError("vacancy links but no vacancy cards (page layout changed?)")
-            return [_parse_card(card, slug) for card in cards]
-        except ValueError as exc:
+            return cards
+        except (ValueError, KeyError, TypeError, AttributeError) as exc:
             raise RuntimeError(
                 f"avito: malformed direction page {slug}: {type(exc).__name__}: {str(exc)[:100]}"
             ) from exc
@@ -281,11 +288,16 @@ class AvitoSource:
         seen: dict[str, int] = {}
         for card in listed.values():
             seen[card["section"]] = seen.get(card["section"], 0) + 1
-        for section, found in seen.items():
-            if section in counts and found < counts[section] - 1:  # tolerate one just-published
+        sections = self._params.get("sections") or {}  # direction slug -> section name
+        mapped = {sections[s] for s in self._params.get("directions") or [] if s in sections}
+        for section, total in counts.items():
+            if section not in mapped and section not in seen:
+                continue  # a section of a direction that is intentionally not configured
+            found = seen.get(section, 0)
+            if found < total - 1:  # tolerate one vacancy published between the requests
                 raise RuntimeError(
                     f"avito: section {section!r}: {found} vacancies listed, "
-                    f"the main page reports {counts[section]} (tolerance 1)"
+                    f"the main page reports {total} (tolerance 1)"
                 )
         if len(listed) >= 3 and not any(c["format"] for c in listed.values()):
             raise RuntimeError(

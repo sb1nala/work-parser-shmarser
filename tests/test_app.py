@@ -286,6 +286,7 @@ async def test_registry_builds_avito_with_shared_client(cfg):
     assert avito._params["directions"] and avito._params["keep_directions"]
     assert set(avito._params["keep_directions"]) <= set(avito._params["directions"])
     assert avito._params["require_level_keyword"] is True
+    assert set(avito._params["sections"]) <= set(avito._params["directions"])
 
 
 async def test_registry_respects_disabled_avito(cfg):
