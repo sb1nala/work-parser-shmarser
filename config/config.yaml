@@ -163,6 +163,46 @@ sources:
     page_size: 50
     max_pages: 10
     portal_pages: [internship, vacancy]
+  avito:
+    enabled: true
+    # career.avito.com: Bitrix-сайт, JSON API нет, списки отдаются сервером в HTML (без токенов
+    # и капчи, TLS по публичному CA). /vacancies/ показывает по 4 вакансии на раздел, поэтому
+    # читаются страницы направлений /vacancies/<slug>/ (на каждой все вакансии направления, ~126
+    # вакансий в 16 непустых направлениях); счётчики разделов с главной страницы сверяются с
+    # числом найденных, обрезанный список падает с ошибкой. directions: все направления сайта
+    # (значения radio-фильтра на /vacancies/), чтобы видеть флаг «Стажировка» у любой вакансии;
+    # он ловится в любом направлении. keep_directions: направления, вакансии которых берутся
+    # целиком (на каждую одна страница вакансии за датой и описанием; сейчас ~58 вакансий).
+    # Флаг стажировки сейчас ни у одной вакансии не стоит (программы на start.avito.ru закрыты).
+    directions:
+      - prodazhi
+      - razrabotka
+      - analitika-dannykh
+      - marketing
+      - data-science
+      - upravlenie-produktom
+      - hr
+      - pr
+      - razvitie-biznesa
+      - finansy-zakupki-i-audit
+      - ux-issledovaniya
+      - ux-redaktsiya
+      - informatsionnaya-bezopasnost
+      - strategiya-i-m-a
+      - tekhpodderzhka
+      - yurisprudentsiya-i-gr
+      - avtomatizatsiya-biznes-protsessov-1c
+      - administrativnaya-rabota
+      - dizayn
+      - klientskiy-servis
+      - logistika
+      - upravlenie-biznes-protsessami
+    keep_directions:
+      - analitika-dannykh
+      - data-science
+      - razrabotka
+      - upravlenie-produktom
+      - finansy-zakupki-i-audit
   telegram:
     enabled: true
     # публичное превью каналов https://t.me/s/<канал> (без токенов): посты за последние

@@ -12,6 +12,7 @@ from vacancy_bot.db import repo
 from vacancy_bot.domain import Employment, Posting, WorkFormat
 from vacancy_bot.settings import Settings
 from vacancy_bot.sources.alfa import AlfaSource
+from vacancy_bot.sources.avito import AvitoSource
 from vacancy_bot.sources.hh import HHSource
 from vacancy_bot.sources.registry import build_sources
 from vacancy_bot.sources.sber import SberSource
@@ -132,10 +133,10 @@ def settings(token=None) -> Settings:
 
 
 async def names(cfg, token=None, telegram=False):
-    """Source types built from cfg; Telegram, Yandex and VK ones are left out (own tests)."""
+    """Source types built from cfg; Telegram, Yandex, VK and Avito ones are left out (own tests)."""
     async with httpx.AsyncClient() as http:
         types = [type(s) for s in build_sources(cfg, http, settings(token))]
-    newer = (YandexSource, VKSource)
+    newer = (YandexSource, VKSource, AvitoSource)
     return [t for t in types if (telegram or t is not TelegramSource) and t not in newer]
 
 
@@ -274,3 +275,20 @@ async def test_registry_respects_disabled_vk(cfg):
     off = replace(cfg, sources={**cfg.sources, "vk": vk_off})
     async with httpx.AsyncClient() as http:
         assert not [s for s in build_sources(off, http, settings()) if isinstance(s, VKSource)]
+
+
+async def test_registry_builds_avito_with_shared_client(cfg):
+    async with httpx.AsyncClient() as shared, httpx.AsyncClient() as ru_ca:
+        built = build_sources(cfg, shared, settings(), ru_ca)
+        (avito,) = [s for s in built if isinstance(s, AvitoSource)]
+    assert avito.name == "avito"
+    assert avito._http is shared  # career.avito.com verifies with certifi; no Russian root CA needed
+    assert avito._params["directions"] and avito._params["keep_directions"]
+    assert set(avito._params["keep_directions"]) <= set(avito._params["directions"])
+
+
+async def test_registry_respects_disabled_avito(cfg):
+    avito_off = {**cfg.sources["avito"], "enabled": False}
+    off = replace(cfg, sources={**cfg.sources, "avito": avito_off})
+    async with httpx.AsyncClient() as http:
+        assert not [s for s in build_sources(off, http, settings()) if isinstance(s, AvitoSource)]
