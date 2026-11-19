@@ -423,6 +423,40 @@ async def test_count_cross_check_tolerates_one_just_published_vacancy():
     assert [p.external_id for p in await run(params(directions=["analitika-dannykh"]))] == ["7"]
 
 
+@respx.mock
+async def test_count_cross_check_does_not_tolerate_a_total_of_one_with_no_cards():
+    mock_simple(
+        {
+            "analitika-dannykh": [],
+            "razrabotka": [item(url_id=7, slug="razrabotka", section="Разработка")],
+        },
+        counts={"Аналитика данных": 1, "Разработка": 1},
+    )
+    with pytest.raises(RuntimeError, match="Аналитика данных"):
+        await run(
+            params(
+                directions=["analitika-dannykh", "razrabotka"],
+                sections={"analitika-dannykh": "Аналитика данных", "razrabotka": "Разработка"},
+            )
+        )
+
+
+@respx.mock
+async def test_raises_when_a_configured_section_has_cards_but_no_main_page_count():
+    mock_simple(
+        {"analitika-dannykh": [item(url_id=7)]},
+        counts={"Разработка": 5},
+        details={"/vacancies/analitika-dannykh/7/": job_page()},
+    )
+    with pytest.raises(RuntimeError, match="no count"):
+        await run(
+            params(
+                directions=["analitika-dannykh"],
+                sections={"analitika-dannykh": "Аналитика данных"},
+            )
+        )
+
+
 @pytest.mark.parametrize("flag", [True, False])
 @respx.mock
 async def test_require_level_keyword_is_passed_to_every_posting(flag):

@@ -290,11 +290,18 @@ class AvitoSource:
             seen[card["section"]] = seen.get(card["section"], 0) + 1
         sections = self._params.get("sections") or {}  # direction slug -> section name
         mapped = {sections[s] for s in self._params.get("directions") or [] if s in sections}
+        for section in seen:
+            if section in mapped and section not in counts:
+                raise RuntimeError(
+                    f"avito: section {section!r} has listed vacancies but no count "
+                    "on the main page (page layout changed?)"
+                )
         for section, total in counts.items():
             if section not in mapped and section not in seen:
                 continue  # a section of a direction that is intentionally not configured
             found = seen.get(section, 0)
-            if found < total - 1:  # tolerate one vacancy published between the requests
+            # tolerate one vacancy published between the requests (not for a total of 1)
+            if found < (total - 1 if total >= 2 else total):
                 raise RuntimeError(
                     f"avito: section {section!r}: {found} vacancies listed, "
                     f"the main page reports {total} (tolerance 1)"
