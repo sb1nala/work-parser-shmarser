@@ -406,11 +406,35 @@ async def test_raises_when_direction_page_lists_fewer_than_main_page_counts():
     # a truncated direction page would silently "close" the missing vacancies
     mock_simple(
         {"analitika-dannykh": [item(url_id=7)]},
-        counts={"Аналитика данных": 2},
+        counts={"Аналитика данных": 3},
         details={"/vacancies/analitika-dannykh/7/": job_page()},
     )
-    with pytest.raises(RuntimeError, match="Аналитика данных.*1.*2"):
+    with pytest.raises(RuntimeError, match="Аналитика данных.*1.*3"):
         await run(params(directions=["analitika-dannykh"]))
+
+
+@respx.mock
+async def test_count_cross_check_tolerates_one_just_published_vacancy():
+    mock_simple(
+        {"analitika-dannykh": [item(url_id=7)]},
+        counts={"Аналитика данных": 2},  # published between the main and the direction request
+        details={"/vacancies/analitika-dannykh/7/": job_page()},
+    )
+    assert [p.external_id for p in await run(params(directions=["analitika-dannykh"]))] == ["7"]
+
+
+@pytest.mark.parametrize("flag", [True, False])
+@respx.mock
+async def test_require_level_keyword_is_passed_to_every_posting(flag):
+    mock_fixture()
+    postings = await run(params(require_level_keyword=flag))
+    assert postings and all(p.require_level_keyword is flag for p in postings)
+
+
+@respx.mock
+async def test_require_level_keyword_defaults_to_off():
+    mock_fixture()
+    assert not any(p.require_level_keyword for p in await run())
 
 
 @respx.mock

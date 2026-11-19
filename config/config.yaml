@@ -18,7 +18,7 @@ criteria:
     - bi
     - product analyst
     - ds
-  seniority_stopwords: [middle, senior, lead, ведущий, старший, главный, руководитель, head, principal]
+  seniority_stopwords: [middle, senior, lead, ведущий, старший, главный, руководитель, head, principal, тимлид, team lead, teamlead]
   excluded_role_patterns:
     - 1с
     - 1c
@@ -197,6 +197,9 @@ sources:
       - klientskiy-servis
       - logistika
       - upravlenie-biznes-protsessami
+    # require_level_keyword: без слова уровня в названии, стажировки и нулевого опыта вакансия
+    # отсеивается (опыт у Авито виден только в свободном тексте, иначе шли бы все мид/сеньор).
+    require_level_keyword: true
     keep_directions:
       - analitika-dannykh
       - data-science

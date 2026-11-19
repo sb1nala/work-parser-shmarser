@@ -2,7 +2,7 @@ import re
 from functools import lru_cache
 
 from vacancy_bot.config import Criteria, normalize
-from vacancy_bot.domain import Decision, Posting, WorkFormat
+from vacancy_bot.domain import Decision, Employment, Posting, WorkFormat
 
 
 @lru_cache(maxsize=None)
@@ -32,7 +32,11 @@ def evaluate(posting: Posting, criteria: Criteria) -> Decision:
         return _reject("excluded_role")
     if not _has_any(t, criteria.direction_keywords):
         return _reject("not_relevant")
-    if posting.require_level_keyword and not _has_any(t, criteria.level_keywords):
+    if posting.require_level_keyword and not (
+        _has_any(t, criteria.level_keywords)
+        or posting.employment == Employment.INTERNSHIP
+        or posting.experience_years_min == 0
+    ):
         return _reject("no_level_keyword")
 
     exp = posting.experience_years_min

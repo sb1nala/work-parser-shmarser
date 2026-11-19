@@ -160,7 +160,7 @@ def _employment(value: object) -> Employment | None:
     return None
 
 
-def _map(card: dict, page: str) -> Posting:
+def _map(card: dict, page: str, require_level: bool = False) -> Posting:
     ld = _json_ld(BeautifulSoup(page, "html.parser"))
     posted = ld.get("datePosted")
     if posted is not None and not isinstance(posted, str):
@@ -184,6 +184,7 @@ def _map(card: dict, page: str) -> Posting:
         experience_years_min=None,
         description=description,
         published_at=_aware(posted) if posted else None,
+        require_level_keyword=require_level,
         raw={
             "id": card["id"],
             "url_id": card["url_id"],
@@ -259,7 +260,7 @@ class AvitoSource:
     async def _detail(self, card: dict) -> Posting:
         resp = await self._get(f"{LIST_URL}{card['direction']}/{card['url_id']}/")
         try:
-            return _map(card, resp.text)
+            return _map(card, resp.text, bool(self._params.get("require_level_keyword", False)))
         except (ValueError, KeyError, TypeError, AttributeError) as exc:
             raise RuntimeError(
                 f"avito: malformed vacancy {card['url_id']}: {type(exc).__name__}: {str(exc)[:100]}"
@@ -281,10 +282,10 @@ class AvitoSource:
         for card in listed.values():
             seen[card["section"]] = seen.get(card["section"], 0) + 1
         for section, found in seen.items():
-            if section in counts and found < counts[section]:
+            if section in counts and found < counts[section] - 1:  # tolerate one just-published
                 raise RuntimeError(
                     f"avito: section {section!r}: {found} vacancies listed, "
-                    f"the main page reports {counts[section]}"
+                    f"the main page reports {counts[section]} (tolerance 1)"
                 )
         if len(listed) >= 3 and not any(c["format"] for c in listed.values()):
             raise RuntimeError(

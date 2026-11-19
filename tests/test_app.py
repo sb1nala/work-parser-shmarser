@@ -285,6 +285,7 @@ async def test_registry_builds_avito_with_shared_client(cfg):
     assert avito._http is shared  # career.avito.com verifies with certifi; no Russian root CA needed
     assert avito._params["directions"] and avito._params["keep_directions"]
     assert set(avito._params["keep_directions"]) <= set(avito._params["directions"])
+    assert avito._params["require_level_keyword"] is True
 
 
 async def test_registry_respects_disabled_avito(cfg):
