@@ -27,6 +27,11 @@ def test_company_aliases():
     assert normalize_company("АО «ТБанк»", A) == "т-банк"
 
 
+def test_bigtech_company_spellings_share_a_key():
+    for a, b in [("Yandex", "Яндекс"), ("ВК", "VK"), ("Avito", "Авито"), ("VK Tech", "VK")]:
+        assert dedup_key(a, "Стажёр-аналитик", A) == dedup_key(b, "Стажёр-аналитик", A)
+
+
 def test_unknown_company_kept():
     assert normalize_company("ООО Ромашка", A) == "ооо ромашка"
 

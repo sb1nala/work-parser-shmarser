@@ -325,3 +325,9 @@ async def test_paces_requests(monkeypatch):
         await YandexSource(http, params(), delay=0.5).fetch()
     # one pause before the second list page, one before each of the 3 detail calls
     assert sleeps == [0.5] * 4
+
+
+def test_empty_alert_after_hours_is_read_from_params():
+    src = YandexSource(None, params(empty_alert_after_hours=720))  # type: ignore[arg-type]
+    assert src.empty_alert_after_hours == 720
+    assert YandexSource(None, params()).empty_alert_after_hours is None  # type: ignore[arg-type]

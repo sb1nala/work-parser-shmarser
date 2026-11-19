@@ -45,10 +45,18 @@ company_aliases:
   втб: втб
   банк втб: втб
   банк втб (пао): втб
+  yandex: яндекс
+  яндекс: яндекс
+  vk: vk
+  вк: vk
+  вконтакте: vk
+  vk tech: vk
+  avito: авито
+  авито: авито
 
 schedule:
   every_hours: 4
-source_timeout_seconds: 120
+source_timeout_seconds: 300
 empty_alert_after_hours: 72
 # Вакансия, пропавшая из источника меньше чем на столько часов и вернувшаяся,
 # открывается молча (это сбой выдачи, а не новый набор). Дольше — «🔁 снова открыта».
@@ -148,6 +156,8 @@ sources:
     pro_levels: [intern, junior]
     page_size: 40
     max_pages: 10
+    # сезонная пустота (нет вакансий грейда intern/junior) - норма; смена формата API ловится ошибкой
+    empty_alert_after_hours: 720
   vk:
     enabled: true
     # team.vk.company/career/api/v2/vacancies (открытый JSON, без токенов): ~230 вакансий целиком,

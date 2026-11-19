@@ -163,6 +163,8 @@ class YandexSource:
         self._http = http
         self._params = params
         self._delay = delay
+        # entry-level openings come and go by season; a layout change raises in fetch()
+        self.empty_alert_after_hours: int | None = params.get("empty_alert_after_hours")
 
     async def _list_ids(self) -> list[int]:
         page_size = self._params.get("page_size", 40)
