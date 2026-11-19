@@ -125,6 +125,29 @@ sources:
     business_lines: ['1022', '1018']
     take: 100
     max_pages: 10
+  yandex:
+    enabled: true
+    # yandex.ru/jobs/api/publications (открытый JSON, без токенов и капчи): ~290 публикаций
+    # целиком, поэтому запрос сужен профессиями (slug из фильтра на yandex.ru/jobs/vacancies;
+    # ~43 публикации) и грейдом intern/junior (pro_levels, совпадает по границе диапазона
+    # грейдов; сейчас 3 публикации). Грейд виден только в карточке, поэтому на каждую
+    # найденную публикацию делается один запрос к GET .../publications/<id>.
+    # Стажировки (yandex.ru/yaintern) на самом деле те же публикации с грейдом intern.
+    professions:
+      - analyst
+      - analyst-developer
+      - ml-developer
+      - ml-researcher
+      - data-engineer
+      - marketing-analyst
+      - financial-analyst
+      - product-manager
+      - hr-analyst
+      - data-processing-operator
+      - ai-trainer
+    pro_levels: [intern, junior]
+    page_size: 40
+    max_pages: 10
   telegram:
     enabled: true
     # публичное превью каналов https://t.me/s/<канал> (без токенов): посты за последние

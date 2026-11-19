@@ -18,6 +18,7 @@ from vacancy_bot.sources.sber import SberSource
 from vacancy_bot.sources.tbank import TBankSource
 from vacancy_bot.sources.telegram import TelegramSource
 from vacancy_bot.sources.vtb import VTBSource
+from vacancy_bot.sources.yandex import YandexSource
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
@@ -130,10 +131,10 @@ def settings(token=None) -> Settings:
 
 
 async def names(cfg, token=None, telegram=False):
-    """Source types built from cfg; Telegram ones only on request (they have their own tests)."""
+    """Source types built from cfg; Telegram and Yandex ones are left out (own tests)."""
     async with httpx.AsyncClient() as http:
         types = [type(s) for s in build_sources(cfg, http, settings(token))]
-    return [t for t in types if telegram or t is not TelegramSource]
+    return [t for t in types if (telegram or t is not TelegramSource) and t is not YandexSource]
 
 
 async def test_registry_default_config_skips_hh(cfg):
@@ -240,3 +241,17 @@ async def test_registry_telegram_disabled_builds_none(cfg):
         cfg, sources={**cfg.sources, "telegram": {**cfg.sources["telegram"], "enabled": False}}
     )
     assert await names(off, telegram=True) == await names(off)
+
+
+async def test_registry_builds_yandex_with_shared_client(cfg):
+    async with httpx.AsyncClient() as shared, httpx.AsyncClient() as ru_ca:
+        built = build_sources(cfg, shared, settings(), ru_ca)
+        (yandex,) = [s for s in built if isinstance(s, YandexSource)]
+    assert yandex.name == "yandex"
+    assert yandex._http is shared  # yandex.ru verifies with certifi; no Russian root CA needed
+
+
+async def test_registry_respects_disabled_yandex(cfg):
+    off = replace(cfg, sources={**cfg.sources, "yandex": {**cfg.sources["yandex"], "enabled": False}})
+    async with httpx.AsyncClient() as http:
+        assert not [s for s in build_sources(off, http, settings()) if isinstance(s, YandexSource)]
