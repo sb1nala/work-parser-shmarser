@@ -32,7 +32,12 @@ verifies it).
      `itemprop="description"` article) and `<h4 class="vacancy-title">` blocks with
      `<div class="vacancy-tag">` values: "Уровень" (junior / middle / senior / lead / head,
      a range), "График работы" (полный), "Формат работы". One page is fetched for each
-     listed vacancy (a polite delay between requests).
+     listed vacancy (a polite delay between requests). The page is parsed with an HTML
+     parser (by itemprop/class, not by attribute order). Layout-change guards: a page with
+     the JobPosting marker where both the description and datePosted are missing raises;
+     a missing "Уровень" block on one page is allowed (experience stays None), but if it
+     is missing on EVERY page of a fetch (with at least 3 pages) the fetch raises. The
+     list `count` is checked against the unique ids fetched per specialty.
    Vacancies of the regular site carry no explicit internship flag: the titles of internship
    roles are caught by the bot's own filter, and the "Уровень" tag marks juniors.
 
@@ -51,7 +56,9 @@ verifies it).
    collide with the ids of the regular site. The state has no description, so a short one
    is composed from the stated fields only (project, direction, dates, skills). The pages
    are listed in config (sources.vk.portal_pages); when none is configured the portal is
-   not requested. At the time of writing "internship" had 5 vacancies, "vacancy" none.
+   not requested. At the time of writing "internship" had 5 vacancies; "vacancy" had an
+   empty list, and a missing/null `vacancies` key is treated as empty (a present value
+   of the wrong type raises).
 
 `raw` keeps only an allowlist of non-personal keys; no contact data is ever copied.
 """
@@ -64,6 +71,8 @@ from datetime import UTC, datetime
 from urllib.parse import parse_qs, urlparse
 
 import httpx
+from bs4 import BeautifulSoup
+from bs4.element import Tag
 
 from vacancy_bot.domain import Employment, Posting, WorkFormat
 
@@ -103,11 +112,6 @@ _PORTAL_EMPLOYMENT = {
     "contract": Employment.PROJECT,
 }
 _JOB_POSTING = "schema.org/JobPosting"
-_DATE_POSTED = re.compile(r'itemprop="datePosted"\s+content="([^"]*)"')
-_DESCRIPTION = re.compile(
-    r'itemprop="description">(.*?)(?=<div class="(?:features|section-control)">|\Z)', re.S
-)
-_TAG_VALUE = re.compile(r'<div class="vacancy-tag">(.*?)</div>', re.S)
 _NEXT_DATA = re.compile(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', re.S)
 _TAG = re.compile(r"<[^>]+>")
 _BREAK = re.compile(r"<br\s*/?>|</(?:p|li|tr|td|h[1-6])>", re.IGNORECASE)
@@ -125,17 +129,15 @@ def _text(value: str) -> str:
     return _BLANKS.sub("\n\n", "\n".join(lines)).strip()
 
 
-def _tags(page: str, title: str) -> list[str]:
-    """Values of the vacancy page block headed `title`; [] when the block is absent."""
-    block = re.search(
-        rf'<h4 class="vacancy-title">\s*{title}\s*</h4>'
-        r'(.*?)(?=<h4 class="vacancy-title">|<div class="notice-block">|</section>|\Z)',
-        page,
-        re.S,
-    )
-    if not block:
-        return []
-    return [_text(v) for v in _TAG_VALUE.findall(block.group(1)) if _text(v)]
+def _block(soup: BeautifulSoup, title: str) -> list[str] | None:
+    """Tag values of the vacancy page block headed `title`; None when the block is absent."""
+    for head in soup.find_all("h4", class_="vacancy-title"):
+        if head.get_text(strip=True) == title:
+            row = head.parent.parent if head.parent and head.parent.parent else head.parent
+            if not isinstance(row, Tag) or row.name != "div":
+                row = head.parent
+            return [t for v in row.find_all(class_="vacancy-tag") if (t := _text(v.get_text()))]
+    return None
 
 
 def _experience(levels: list[str]) -> int | None:
@@ -159,7 +161,8 @@ def _name(value: object, what: str) -> str | None:
 
 
 def _map_vacancy(item: dict, page: str) -> Posting:
-    if _JOB_POSTING not in page:
+    soup = BeautifulSoup(page, "html.parser")
+    if soup.find(attrs={"itemtype": re.compile(re.escape(_JOB_POSTING))}) is None:
         raise ValueError("page is not a vacancy (no JobPosting markup)")
     vacancy_id = item["id"]
     town = _name(item.get("town"), "town")
@@ -168,12 +171,17 @@ def _map_vacancy(item: dict, page: str) -> Posting:
         formats.add(shown)
     if item.get("remote") is True:
         formats.add(WorkFormat.REMOTE)
-    levels = _tags(page, "Уровень")
-    schedule = _tags(page, "График работы")
+    level_block = _block(soup, "Уровень")
+    levels = level_block or []
+    schedule = _block(soup, "График работы") or []
     schedules = [_SCHEDULES[n] for s in schedule if (n := _norm(s)) in _SCHEDULES]
     is_intern = any(_norm(lv) in _INTERN_LEVELS for lv in levels)
-    posted = _DATE_POSTED.search(page)
-    description = _DESCRIPTION.search(page)
+    meta = soup.find("meta", attrs={"itemprop": "datePosted"})
+    posted = (meta.get("content") or "").strip() if isinstance(meta, Tag) else ""
+    body = soup.find(attrs={"itemprop": "description"})
+    description = _text(body.decode_contents()) if isinstance(body, Tag) else ""
+    if not description and not posted:
+        raise ValueError("neither description nor datePosted found (page layout changed?)")
     tags = item.get("tags") or []
     if not isinstance(tags, list):
         raise ValueError("tags is not a list")
@@ -182,16 +190,16 @@ def _map_vacancy(item: dict, page: str) -> Posting:
         external_id=str(vacancy_id),
         url=f"{SITE_URL}/{vacancy_id}/",
         company=COMPANY,
-        title=item["title"],
+        title=item["title"].strip(),
         cities=(town,) if town else (),
         work_formats=frozenset(formats),
         employment=Employment.INTERNSHIP if is_intern else (schedules[0] if schedules else None),
         experience_years_min=_experience(levels),
-        description=_text(description.group(1)) if description else "",
-        published_at=_day(posted.group(1)) if posted else None,
+        description=description,
+        published_at=_day(posted) if posted else None,
         raw={
             "id": vacancy_id,
-            "title": item["title"],
+            "title": item["title"].strip(),
             "specialty": _name(item.get("specialty"), "specialty"),
             "group": _name(item.get("group"), "group"),
             "prof_area": _name(item.get("prof_area"), "prof_area"),
@@ -201,7 +209,8 @@ def _map_vacancy(item: dict, page: str) -> Posting:
             "tags": [t["name"] for t in tags if isinstance(t, dict) and "name" in t],
             "levels": levels,
             "schedule": schedule,
-            "date_posted": posted.group(1) if posted else None,
+            "date_posted": posted or None,
+            "has_level_block": level_block is not None,
         },
     )
 
@@ -245,16 +254,17 @@ def _map_portal(v: dict, units: dict, directions: dict, skills: dict) -> Posting
         external_id=f"intern-{vacancy_id}",
         url=f"{PORTAL_URL}/vacancy/{vacancy_id}",
         company=COMPANY,
-        title=v["title"],
+        title=v["title"].strip(),
         cities=(city,) if city and _norm(city) != "любой" else (),
         work_formats=frozenset({work_format}) if work_format else frozenset(),
         employment=employment,
-        experience_years_min=0,  # internships and junior vacancies: no experience required
+        # internships and junior vacancies need no experience; other types state nothing
+        experience_years_min=0 if v.get("internship_type") in ("internship", "junior") else None,
         description="\n".join(parts),
         published_at=None,
         raw={
             "id": vacancy_id,
-            "title": v["title"],
+            "title": v["title"].strip(),
             "unit": unit,
             "direction": direction,
             "internship_type": v.get("internship_type"),
@@ -300,6 +310,9 @@ class VKSource:
                 data = resp.json()
                 results = data["results"]
                 nxt = data.get("next")
+                count = data["count"]
+                if type(count) is not int:
+                    raise ValueError("count is not an integer")
                 if not isinstance(results, list) or not isinstance(nxt, str | None):
                     raise ValueError("results/next have unexpected types")
                 for item in results:
@@ -320,6 +333,12 @@ class VKSource:
                 ) from exc
             items.extend(results)
             if next_offset is None:
+                unique = len({i["id"] for i in items})
+                if unique < count:
+                    raise RuntimeError(
+                        f"vk: got {unique} vacancies for specialty {specialty}, "
+                        f"the API reports count={count}"
+                    )
                 return items
             if not results:
                 raise RuntimeError(f"vk: empty page ({where}) before the end of the list")
@@ -347,9 +366,7 @@ class VKSource:
             if not found:
                 raise ValueError("no embedded page state")
             page = json.loads(found.group(1))["props"]["pageProps"]["page"]
-            vacancies = page["vacancies"]
-            if not isinstance(vacancies, list):
-                raise ValueError("vacancies is not a list")
+            vacancies = _list(page.get("vacancies"), "vacancies")  # absent = empty page
             units = {u["id"]: u["name"] for u in _list(page.get("units"), "units")}
             directions = {d["id"]: d["name"] for d in _list(page.get("directions"), "directions")}
             skills = page.get("skills") or {}
@@ -380,6 +397,12 @@ class VKSource:
         for item in listed.values():
             posting = await self._detail(item)
             found.setdefault(posting.external_id, posting)
+        pages = list(found.values())
+        if len(pages) >= 3 and not any(p.raw["has_level_block"] for p in pages):
+            raise RuntimeError(
+                f"vk: no vacancy page has a 'Уровень' block ({len(pages)} pages); "
+                "the page layout probably changed"
+            )
         for path in self._params.get("portal_pages") or []:
             for posting in await self._portal(path):
                 found.setdefault(posting.external_id, posting)

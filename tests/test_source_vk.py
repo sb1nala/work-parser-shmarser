@@ -24,9 +24,30 @@ def params(**kw):
     return {"specialties": [295], "page_size": 50, "max_pages": 10, **kw}
 
 
-def page(items, next_offset=None):
+def page(items, next_offset=None, count=None):
     nxt = f"{URL}?limit=50&offset={next_offset}" if next_offset else None
-    return {"count": 99, "next": nxt, "previous": None, "results": items}
+    count = len(items) if count is None else count
+    return {"count": count, "next": nxt, "previous": None, "results": items}
+
+
+def job_page(levels=None, schedule=None, description="Текст", posted=None):
+    """A vacancy page shaped like the real one; levels=None omits the "Уровень" block."""
+
+    def block(title, values):
+        tags = "".join(f'<div class="vacancy-tag">{v}</div>' for v in values)
+        return f'<div><div><h4 class="vacancy-title">{title}</h4></div><div>{tags}</div></div>'
+
+    parts = ['<div class="content" itemscope itemtype="http://schema.org/JobPosting">']
+    if posted:
+        parts.append(f'<meta content="{posted}" itemprop="datePosted">')  # attribute order swapped
+    if description:
+        parts.append(f'<div class="article" itemprop="description">{description}</div>')
+    parts.append("</div>")
+    if levels is not None:
+        parts.append(block("Уровень", levels))
+    if schedule is not None:
+        parts.append(block("График работы", schedule))
+    return "".join(parts)
 
 
 def detail_routes(ids=IDS):
@@ -51,7 +72,8 @@ async def run(source_params):
 
 @respx.mock
 async def test_maps_fixture():
-    route = respx.get(URL).mock(return_value=httpx.Response(200, json=LIST))
+    trimmed = {**LIST, "count": len(ITEMS)}  # the fixture keeps only 5 of the 14 real items
+    route = respx.get(URL).mock(return_value=httpx.Response(200, json=trimmed))
     detail_routes()
     postings = await run(params())
     assert [p.external_id for p in postings] == [str(i) for i in IDS]
@@ -84,7 +106,7 @@ async def test_does_not_invent_values():
     bare = {"id": 7, "title": "Аналитик", "town": None, "work_format": "гибкий", "remote": False}
     respx.get(URL).mock(return_value=httpx.Response(200, json=page([bare])))
     respx.get(f"{SITE}/7/").mock(
-        return_value=httpx.Response(200, text='<div itemtype="http://schema.org/JobPosting"></div>')
+        return_value=httpx.Response(200, text=job_page())
     )
     (p,) = await run(params())
     assert p.cities == ()
@@ -92,7 +114,7 @@ async def test_does_not_invent_values():
     assert p.employment is None
     assert p.experience_years_min is None
     assert p.published_at is None
-    assert p.description == ""
+    assert p.description == "Текст"
 
 
 def test_junior_detail_maps_to_zero_experience():
@@ -121,10 +143,7 @@ def test_experience_mapping():
 
 def test_intern_level_means_internship():
     item = {"id": 1, "title": "x", "town": None, "work_format": None, "remote": False}
-    html = (
-        '<div itemtype="http://schema.org/JobPosting"></div>'
-        '<h4 class="vacancy-title">Уровень</h4><div><div class="vacancy-tag">стажёр</div></div>'
-    )
+    html = job_page(levels=["стажёр"])
     p = _map_vacancy(item, html)
     assert p.employment is Employment.INTERNSHIP
     assert p.experience_years_min == 0
@@ -132,11 +151,7 @@ def test_intern_level_means_internship():
 
 def test_part_time_schedule():
     item = {"id": 1, "title": "x", "town": None, "work_format": None, "remote": False}
-    html = (
-        '<div itemtype="http://schema.org/JobPosting"></div>'
-        '<h4 class="vacancy-title">График работы</h4><div><div class="vacancy-tag">'
-        "частичный</div></div>"
-    )
+    html = job_page(schedule=["частичный"])
     assert _map_vacancy(item, html).employment is Employment.PART
     assert _map_vacancy(item, html.replace("частичный", "сменный")).employment is None
 
@@ -153,7 +168,7 @@ def test_raw_is_an_allowlist_without_personal_data():
         "specialty": {"id": 295, "name": "Продуктовая аналитика"},
         "recruiter": {"name": "Иванов Иван", "phone": "+7 000", "email": "a@b.c"},
     }
-    html = '<div itemtype="http://schema.org/JobPosting"></div>'
+    html = job_page()
     raw = _map_vacancy(item, html).raw
     blob = json.dumps(raw, ensure_ascii=False)
     for secret in ("Иванов", "+7 000", "a@b.c", "logo.png"):
@@ -165,8 +180,8 @@ def test_raw_is_an_allowlist_without_personal_data():
 async def test_paginates_with_offset():
     route = respx.get(URL).mock(
         side_effect=[
-            httpx.Response(200, json=page(ITEMS[:2], 2)),
-            httpx.Response(200, json=page(ITEMS[2:])),
+            httpx.Response(200, json=page(ITEMS[:2], 2, count=5)),
+            httpx.Response(200, json=page(ITEMS[2:], count=5)),
         ]
     )
     detail_routes()
@@ -181,8 +196,8 @@ async def test_paginates_with_offset():
 async def test_dedups_ids_across_pages_and_specialties():
     route = respx.get(URL).mock(
         side_effect=[
-            httpx.Response(200, json=page(ITEMS[:2], 2)),
-            httpx.Response(200, json=page(ITEMS[1:3])),
+            httpx.Response(200, json=page(ITEMS[:2], 2, count=3)),
+            httpx.Response(200, json=page(ITEMS[1:3], count=3)),
             httpx.Response(200, json=page(ITEMS[2:4])),
         ]
     )
@@ -246,6 +261,8 @@ async def test_raises_on_non_json_200():
     "body",
     [
         {"count": 1},
+        {"results": [], "next": None},
+        {"count": "1", "results": []},
         {"results": "x"},
         {"results": [{"title": "no id"}]},
         {"results": [{"id": "1", "title": "x"}]},
@@ -293,10 +310,7 @@ async def test_detail_failure_fails_whole_fetch_not_partial():
 
 @respx.mock
 async def test_raises_on_bad_detail_date():
-    html = (
-        '<div itemtype="http://schema.org/JobPosting">'
-        '<meta itemprop="datePosted" content="x"></div>'
-    )
+    html = job_page(posted="x")
     respx.get(URL).mock(return_value=httpx.Response(200, json=page(ITEMS[:1])))
     respx.get(f"{SITE}/{IDS[0]}/").mock(return_value=httpx.Response(200, text=html))
     with pytest.raises(RuntimeError, match=f"vk: malformed vacancy {IDS[0]}"):
@@ -324,8 +338,8 @@ async def test_paces_requests(monkeypatch):
     monkeypatch.setattr("vacancy_bot.sources.vk.asyncio.sleep", fake_sleep)
     respx.get(URL).mock(
         side_effect=[
-            httpx.Response(200, json=page(ITEMS[:2], 2)),
-            httpx.Response(200, json=page(ITEMS[2:3])),
+            httpx.Response(200, json=page(ITEMS[:2], 2, count=3)),
+            httpx.Response(200, json=page(ITEMS[2:3], count=3)),
         ]
     )
     detail_routes()
@@ -434,3 +448,89 @@ async def test_portal_raises_on_malformed_state(text):
     respx.get(f"{PORTAL}/internship").mock(return_value=httpx.Response(200, text=text))
     with pytest.raises(RuntimeError, match="vk: malformed internship portal page internship"):
         await run(params(specialties=[], portal_pages=["internship"]))
+
+
+# --- layout-change guards, count cross-check, portal shape ---
+
+
+@respx.mock
+async def test_description_is_the_whole_element_without_dangling_heading():
+    respx.get(URL).mock(return_value=httpx.Response(200, json=page([{"id": 52788, "title": "x"}])))
+    respx.get(f"{SITE}/52788/").mock(return_value=httpx.Response(200, text=DETAILS["52788"]))
+    (p,) = await run(params())
+    assert p.description.endswith("Опыт подготовки презентаций")
+    assert not p.description.endswith("Мы предлагаем")
+    assert "Исследование рынков" in p.description and "Требования" in p.description
+
+
+@respx.mock
+async def test_raises_when_page_has_neither_description_nor_date():
+    respx.get(URL).mock(return_value=httpx.Response(200, json=page(ITEMS[:1])))
+    respx.get(f"{SITE}/{IDS[0]}/").mock(
+        return_value=httpx.Response(200, text=job_page(levels=["senior"], description=""))
+    )
+    with pytest.raises(RuntimeError, match=f"vk: malformed vacancy {IDS[0]}"):
+        await run(params())
+
+
+@respx.mock
+async def test_date_alone_is_enough_for_a_page():
+    respx.get(URL).mock(return_value=httpx.Response(200, json=page(ITEMS[:1])))
+    respx.get(f"{SITE}/{IDS[0]}/").mock(
+        return_value=httpx.Response(
+            200, text=job_page(description="", posted="2026-11-19", levels=[])
+        )
+    )
+    (p,) = await run(params())
+    assert p.description == "" and p.published_at == datetime(2026, 11, 19, tzinfo=UTC)
+
+
+@respx.mock
+async def test_raises_when_level_block_missing_on_every_page():
+    respx.get(URL).mock(return_value=httpx.Response(200, json=page(ITEMS[:3])))
+    for i in IDS[:3]:
+        respx.get(f"{SITE}/{i}/").mock(return_value=httpx.Response(200, text=job_page()))
+    with pytest.raises(RuntimeError, match="no vacancy page has a 'Уровень' block"):
+        await run(params())
+
+
+@respx.mock
+async def test_level_block_missing_on_some_pages_or_few_pages_is_allowed():
+    respx.get(URL).mock(return_value=httpx.Response(200, json=page(ITEMS[:3])))
+    respx.get(f"{SITE}/{IDS[0]}/").mock(
+        return_value=httpx.Response(200, text=job_page(levels=["middle"]))
+    )
+    for i in IDS[1:3]:
+        respx.get(f"{SITE}/{i}/").mock(return_value=httpx.Response(200, text=job_page()))
+    postings = await run(params())
+    assert [p.experience_years_min for p in postings] == [1, None, None]
+
+    respx.get(URL).mock(return_value=httpx.Response(200, json=page(ITEMS[1:3])))  # 2 pages only
+    assert len(await run(params())) == 2
+
+
+@respx.mock
+async def test_raises_when_fewer_vacancies_than_reported_count():
+    respx.get(URL).mock(return_value=httpx.Response(200, json=page(ITEMS[:2], count=5)))
+    with pytest.raises(RuntimeError, match="count=5"):
+        await run(params())
+
+
+@respx.mock
+@pytest.mark.parametrize("state", [{"units": []}, {"vacancies": None}])
+async def test_portal_missing_or_null_vacancies_is_an_empty_page(state):
+    body = {"props": {"pageProps": {"page": state}}}
+    respx.get(f"{PORTAL}/vacancy").mock(return_value=httpx.Response(200, text=portal_html(body)))
+    assert await run(params(specialties=[], portal_pages=["vacancy"])) == []
+
+
+@respx.mock
+async def test_portal_experience_only_for_internship_or_junior_and_titles_stripped():
+    base = STATE["props"]["pageProps"]["page"]["vacancies"][4]
+    other = {**base, "id": 5, "internship_type": "other", "title": "  Аналитик  "}
+    respx.get(f"{PORTAL}/vacancy").mock(
+        return_value=httpx.Response(200, text=portal_html(state_with([other])))
+    )
+    (p,) = await run(params(specialties=[], portal_pages=["vacancy"]))
+    assert p.experience_years_min is None
+    assert p.title == "Аналитик"
