@@ -71,6 +71,9 @@ async def test_maps_fixture():
     assert ds.experience_years_min == 1  # middle
     assert postings[2].experience_years_min == 3  # senior
     assert postings[4].experience_years_min == 0  # intern..middle
+    ml = postings[4]  # real "Yandex Research ML Residency": minimum grade is intern
+    assert ml.external_id == "1697" and ml.employment is Employment.INTERNSHIP
+    assert all(p.employment is None for p in postings[:4])
     assert postings[4].work_formats == frozenset()  # no work_modes stated
 
     q = route.calls[0].request.url.params
@@ -274,7 +277,12 @@ async def test_detail_failure_fails_whole_fetch_not_partial():
     [
         {"id": 7},  # required keys missing
         {"id": 8, "publication_slug_url": "x", "title": "x", "vacancy": {}},  # id mismatch
-        {"id": 7, "publication_slug_url": "x", "title": "x", "vacancy": {"cities": [{"slug": "a"}]}},
+        {
+            "id": 7,
+            "publication_slug_url": "x",
+            "title": "x",
+            "vacancy": {"cities": [{"slug": "a"}]},
+        },
         {"id": 7, "publication_slug_url": "x", "title": "x", "vacancy": {}, "published_at": "nope"},
         {"id": 7, "publication_slug_url": "x", "title": "x", "vacancy": {"work_modes": "x"}},
         [1, 2],
@@ -285,3 +293,35 @@ async def test_raises_on_malformed_detail(body):
     respx.get(f"{URL}/7").mock(return_value=httpx.Response(200, json=body))
     with pytest.raises(RuntimeError, match="yandex: malformed publication 7"):
         await run(params())
+
+
+def test_employment_types_string_is_not_split():
+    item = {
+        "id": 1,
+        "publication_slug_url": "x-1",
+        "title": "x",
+        "vacancy": {"employment_types": "intern remote"},
+    }
+    with pytest.raises(ValueError, match="employment_types"):
+        _map(item)
+
+
+@respx.mock
+async def test_paces_requests(monkeypatch):
+    sleeps = []
+
+    async def fake_sleep(delay):
+        sleeps.append(delay)
+
+    monkeypatch.setattr("vacancy_bot.sources.yandex.asyncio.sleep", fake_sleep)
+    respx.get(URL).mock(
+        side_effect=[
+            httpx.Response(200, json=page(ITEMS[:2], "AAA")),
+            httpx.Response(200, json=page(ITEMS[2:3])),
+        ]
+    )
+    detail_routes()
+    async with httpx.AsyncClient() as http:
+        await YandexSource(http, params(), delay=0.5).fetch()
+    # one pause before the second list page, one before each of the 3 detail calls
+    assert sleeps == [0.5] * 4

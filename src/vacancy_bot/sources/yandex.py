@@ -110,12 +110,20 @@ def _map(item: dict) -> Posting:
     slug = item["publication_slug_url"]
     vacancy = item["vacancy"]
     employment_types = vacancy.get("employment_types") or []
+    if not isinstance(employment_types, list):
+        raise ValueError("vacancy.employment_types is not a list")
     formats = {
-        _WORK_FORMATS[m["slug"]] for m in _names(vacancy, "work_modes") if m["slug"] in _WORK_FORMATS
+        _WORK_FORMATS[m["slug"]]
+        for m in _names(vacancy, "work_modes")
+        if m["slug"] in _WORK_FORMATS
     }
     if "remote" in employment_types:
         formats.add(WorkFormat.REMOTE)
-    cities = tuple(dict.fromkeys(c["name"].strip() for c in _names(vacancy, "cities") if c["name"].strip()))
+    names = (c["name"].strip() for c in _names(vacancy, "cities"))
+    cities = tuple(dict.fromkeys(n for n in names if n))
+    is_intern = "intern" in employment_types or (
+        vacancy.get("pro_level_min_display") == f"{_LEVEL_PREFIX}intern"
+    )
     description = "\n\n".join(t for f in _DESCRIPTION_FIELDS if (t := _text(item.get(f))))
     service = item.get("public_service") or {}
     profession = vacancy.get("profession") or {}
@@ -127,7 +135,7 @@ def _map(item: dict) -> Posting:
         title=item["title"],
         cities=cities,
         work_formats=frozenset(formats),
-        employment=Employment.INTERNSHIP if "intern" in employment_types else None,
+        employment=Employment.INTERNSHIP if is_intern else None,
         experience_years_min=_level(vacancy),
         description=description,
         published_at=_published(item.get("published_at")),
@@ -196,7 +204,7 @@ class YandexSource:
                 return list(ids)
             if not page_ids:
                 raise RuntimeError(f"yandex: empty page {page} before the end of the list")
-            if next_cursor in seen_cursors or next_cursor == cursor:
+            if next_cursor in seen_cursors:
                 raise RuntimeError(f"yandex: cursor did not advance at page {page}")
             seen_cursors.add(next_cursor)
             cursor = next_cursor

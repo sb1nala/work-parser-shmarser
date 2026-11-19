@@ -252,6 +252,7 @@ async def test_registry_builds_yandex_with_shared_client(cfg):
 
 
 async def test_registry_respects_disabled_yandex(cfg):
-    off = replace(cfg, sources={**cfg.sources, "yandex": {**cfg.sources["yandex"], "enabled": False}})
+    yandex_off = {**cfg.sources["yandex"], "enabled": False}
+    off = replace(cfg, sources={**cfg.sources, "yandex": yandex_off})
     async with httpx.AsyncClient() as http:
         assert not [s for s in build_sources(off, http, settings()) if isinstance(s, YandexSource)]
