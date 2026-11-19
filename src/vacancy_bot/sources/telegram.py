@@ -14,7 +14,6 @@ Only posts of the last `window_days` are returned; the pipeline closes the rest.
 """
 
 import asyncio
-import html
 import re
 import unicodedata
 from collections.abc import Callable
@@ -39,6 +38,8 @@ _COMPANY_LABELS = ("компания",)
 _LOCATION_LABELS = ("локация", "город")
 _LABEL_BLOCK_LINES = 6  # labels count only in the post's leading block (up to a blank line)
 _TRACKING_PARAMS = frozenset({"fbclid", "gclid", "yclid", "_openstat", "ref", "referrer"})
+_TELEGRAM_HOSTS = frozenset({"t.me", "telegram.me", "telegra.ph", "telegram.dog"})
+_LINK_SHARE = 0.6  # a count-detected item line is mostly its link text
 _ITEM_MARKERS = ("- ", "• ", "– ")
 _DIGEST_MIN_ITEMS = 3
 _TRAILING_PAREN = re.compile(r"\(([^()]*)\)\s*$")
@@ -113,19 +114,24 @@ def _segments(text_node: Tag) -> list[tuple[str, Tag | None]]:
     return result
 
 
+def _is_telegram_host(host: str | None) -> bool:
+    host = (host or "").lower()
+    return host in _TELEGRAM_HOSTS or host.endswith(".t.me")
+
+
 def _item_link(link: Tag | None) -> str | None:
     """The item's canonical own URL (not a t.me channel link): lowercase scheme/host,
     tracking params and fragment dropped, no trailing slash. Also the item's identity."""
-    # hrefs in the preview are double-escaped ("&amp;amp;"): unescape until stable
+    # hrefs in the preview are double-escaped ("&amp;amp;"): the parser removed one level, undo
+    # the other by hand (html.unescape would also turn "&region=" into "®ion=")
     href = str(link.get("href", "")) if link is not None else ""
-    while (unescaped := html.unescape(href)) != href:
-        href = unescaped
+    href = href.replace("&amp;", "&")
     parts = urlsplit(href)
-    if parts.scheme not in ("http", "https") or parts.netloc.endswith("t.me"):
+    if parts.scheme not in ("http", "https") or _is_telegram_host(parts.hostname):
         return None
     query = sorted(
         (k, v)
-        for k, v in parse_qsl(parts.query)
+        for k, v in parse_qsl(parts.query, keep_blank_values=True)
         if not k.startswith("utm_") and k not in _TRACKING_PARAMS
     )
     return urlunsplit((
@@ -138,7 +144,19 @@ def _item_link(link: Tag | None) -> str | None:
 
 
 def _is_item(text: str, link: Tag | None) -> bool:
-    return text.startswith(_ITEM_MARKERS) and _item_link(link) is not None
+    """A bullet whose visible text is mostly the link ("- <a>Role в Company</a> (Страна)"),
+    not a requirement with an inline link ("- знание <a>SQL</a> и Python")."""
+    if not text.startswith(_ITEM_MARKERS) or _item_link(link) is None:
+        return False
+    body = text[2:].strip()
+    link_text = link.get_text("").strip()
+    if not link_text or not body:
+        return False
+    rest = body[len(link_text):].strip() if body.startswith(link_text) else ""
+    if rest.startswith("(") and rest.endswith(")"):
+        rest = ""  # "(Страна)" after the link
+    total = len(link_text) + len(rest) if body.startswith(link_text) else len(body)
+    return len(link_text) / total >= _LINK_SHARE
 
 
 def _is_bullet(text: str) -> bool:

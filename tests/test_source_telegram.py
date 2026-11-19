@@ -97,7 +97,15 @@ async def test_skips_posts_without_text():
     assert "7157" not in ids  # media only
     plain = {i for i in ids if not i.startswith("http")}
     assert plain == {"7154", "7156", "7158", "7161", "7165", "7162"}
-    assert len(ids - plain) == 9  # 7169 is a digest: one posting per item, keyed by its link
+    digest_ids = ids - plain  # 7169 is a digest: one posting per item, keyed by its link
+    assert digest_ids == {
+        f"https://youngjunior.ru/{path}"
+        for path in (
+            "data/jobs/113647", "product/jobs/113265", "data/jobs/112641",
+            "design/jobs/113555", "design/jobs/113554", "design/jobs/113561",
+            "data/jobs/113398", "project/jobs/113578", "project/jobs/113563",
+        )
+    }
 
 
 @respx.mock
@@ -502,3 +510,56 @@ async def test_item_without_link_keeps_post_and_index_id():
     linkless = ps[1]
     assert (linkless.title, linkless.company) == ("Стажёр Б", "Beta")
     assert linkless.url == "https://t.me/newdirections/90"
+
+
+async def test_item_link_keeps_legacy_entity_lookalikes():
+    link = "https://Jobs.example.com/v/5/?id=5&amp;amp;region=7&amp;amp;currency=rub&amp;amp;section=2&amp;amp;empty="
+    body = "<b>Подборка</b><br/>" + f'- <a href="{link}">Стажёр в Acme</a>'
+    with respx.mock:
+        mock_then_end(html(post_html(95, "2026-11-18T10:00:00+00:00", body)))
+        (p,) = await run()
+    expected = "https://jobs.example.com/v/5?currency=rub&empty=&id=5&region=7&section=2"
+    assert p.url == p.external_id == expected
+
+
+@pytest.mark.parametrize(
+    "href", ["https://t.me/chan/1", "https://telegram.me/x", "http://telegra.ph/a", "https://sub.t.me/x", "https://t.me:443/x"]
+)
+async def test_telegram_links_are_not_item_links(href):
+    body = "<b>Подборка</b><br/>" + f'- <a href="{href}">Стажёр в Acme</a>'
+    with respx.mock:
+        mock_then_end(html(post_html(96, "2026-11-18T10:00:00+00:00", body)))
+        (p,) = await run()
+    assert p.external_id == "96:1" and p.url == "https://t.me/newdirections/96"
+
+
+async def test_non_telegram_host_ending_in_t_me_is_an_item_link():
+    body = "<b>Подборка</b><br/>" + '- <a href="https://about.me/job/1">Стажёр в Acme</a>'
+    with respx.mock:
+        mock_then_end(html(post_html(97, "2026-11-18T10:00:00+00:00", body)))
+        (p,) = await run()
+    assert p.external_id == "https://about.me/job/1"
+
+
+async def test_vacancy_with_inline_links_in_bullets_is_not_a_digest():
+    body = (
+        "Junior Dev / Acme<br/><br/>Требования:<br/>"
+        '- знание <a href="https://example.com/sql">SQL</a> и Python<br/>'
+        '- опыт с <a href="https://example.com/git">Git</a> от года<br/>'
+        '- <a href="https://example.com/docs">Docs</a> и английский язык на уровне B1<br/>'
+        '- ещё <a href="https://example.com/x">пункт</a> про что-то важное'
+    )
+    with respx.mock:
+        mock_then_end(html(post_html(98, "2026-11-18T10:00:00+00:00", body)))
+        (p,) = await run()
+    assert p.external_id == "98" and (p.title, p.company) == ("Junior Dev", "Acme")
+
+
+async def test_count_detected_digest_allows_country_suffix():
+    body = "Свежее<br/>" + "<br/>".join(
+        item(n, f"Стажёр {n} в Acme", " (Армения)") for n in (1, 2, 3)
+    )
+    with respx.mock:
+        mock_then_end(html(post_html(99, "2026-11-18T10:00:00+00:00", body)))
+        ps = await run()
+    assert len(ps) == 3 and ps[0].cities == ("Армения",)
