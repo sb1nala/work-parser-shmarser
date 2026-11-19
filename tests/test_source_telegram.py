@@ -6,7 +6,9 @@ import httpx
 import pytest
 import respx
 
+from vacancy_bot.config import load_config
 from vacancy_bot.domain import WorkFormat
+from vacancy_bot.filtering import evaluate
 from vacancy_bot.sources.telegram import TelegramSource
 
 PAGE = (Path(__file__).parent / "fixtures" / "tg_newdirections_page.html").read_text("utf-8")
@@ -93,7 +95,9 @@ async def test_skips_posts_without_text():
     mock_then_end(PAGE)
     ids = {p.external_id for p in await run()}
     assert "7157" not in ids  # media only
-    assert ids == {"7154", "7156", "7158", "7161", "7165", "7162"}
+    assert ids == {"7154", "7156", "7158", "7161", "7165", "7162"} | {
+        f"7169:{i}" for i in range(1, 10)
+    }  # 7169 is a digest: one posting per item
 
 
 @respx.mock
@@ -326,3 +330,132 @@ async def test_empty_alert_threshold_comes_from_config():
         default = TelegramSource(http, "x", params())
     assert quiet.empty_alert_after_hours == 720
     assert default.empty_alert_after_hours is None
+
+
+# --- label scope ---
+
+
+async def test_labels_only_count_in_leading_block():
+    p = await fetch_one(
+        "Junior Dev / Acme<br>🗺 Москва.<br><br>О нас<br>Компания: мы быстро растём<br>"
+        "Город: любой"
+    )
+    assert (p.title, p.company) == ("Junior Dev", "Acme")
+    assert p.cities == ("Москва",)
+    assert "Компания: мы быстро растём" in p.description
+
+
+async def test_labels_beyond_sixth_line_are_ignored():
+    lines = "<br>".join(["Junior Dev / Acme"] + [f"строка {i}" for i in range(5)] + ["Компания: Evil"])
+    p = await fetch_one(lines)
+    assert p.company == "Acme"
+
+
+# --- digests ---
+
+CONFIG = load_config(Path("config/config.yaml"))
+LINK = "https://youngjunior.ru/data/jobs/{}?utm_source=telegram&amp;amp;utm_medium=x&amp;amp;utm_campaign=digest"
+
+
+def item(n, text, extra=""):
+    return f'- <a href="{LINK.format(n)}">{text}</a>{extra}'
+
+
+def digest_html(*items, header="<b>Подборка вакансий: Data</b>"):
+    footer = '<br/><br/><a href="https://t.me/+abc">Вакансии</a> │ <a href="https://t.me/+d">Ещё</a>'
+    return header + "<br/><br/><b><i>Раздел:</i></b><br/>" + "<br/>".join(items) + footer
+
+
+@respx.mock
+async def test_digest_fixture_items_become_postings():
+    mock_then_end(PAGE)
+    postings = await run()
+    ids = {p.external_id for p in postings}
+    assert ids >= {f"7169:{i}" for i in range(1, 10)}
+    assert "7169" not in ids  # the digest post itself is not a posting
+    assert not any("Подборка" in p.title for p in postings)
+    by_id = {p.external_id: p for p in postings}
+    first = by_id["7169:1"]
+    assert first.title == "Стажёр в Центр практического ИИ"
+    assert first.company == "ПАО Сбербанк"
+    assert first.url == "https://youngjunior.ru/data/jobs/113647"  # own link, utm stripped
+    assert first.published_at == datetime(2026, 11, 18, 15, 0, 37, tzinfo=UTC)
+    assert first.source == "tg_newdirections" and first.require_level_keyword is True
+    assert first.raw["item"] == 1 and first.raw["post"] == "7169"
+    assert first.raw["text"] == "- Стажёр в Центр практического ИИ в ПАО Сбербанк"
+    abroad = by_id["7169:9"]  # "(Узбекистан)" after the link
+    assert (abroad.title, abroad.company) == ("IT Project Manager", "ИП ООО Xalq Retail")
+    assert abroad.cities == ("Узбекистан",)
+    assert by_id["7169:6"].company == "Альфа-Банк: IT-направление и цифровой бизнес"
+
+
+async def test_digest_item_forms():
+    text = digest_html(
+        item(1, "Data Scientist (Deep Learning) | Junior в Бюро кредитных историй"),
+        item(2, "Графический дизайнер / Бренд дизайнер в ФотоЛайф"),
+        item(3, "Аналитик в Acme (удалённо)"),
+        item(4, "Junior Dev в Acme", " (удалённо)"),
+        item(5, "Junior Dev / Beta Corp"),  # no " в ": title rules, last " / "
+        item(6, "Стажёр"),  # no company: channel default
+    )
+    with respx.mock:
+        mock_then_end(html(post_html(50, "2026-11-18T10:00:00+00:00", text)))
+        ps = {p.external_id: p for p in await run()}
+    assert len(ps) == 6
+    a = ps["50:1"]
+    assert (a.title, a.company) == ("Data Scientist (Deep Learning) | Junior", "Бюро кредитных историй")
+    assert a.url == "https://youngjunior.ru/data/jobs/1" and a.work_formats == frozenset()
+    assert (ps["50:2"].title, ps["50:2"].company) == (
+        "Графический дизайнер / Бренд дизайнер", "ФотоЛайф")
+    assert (ps["50:3"].title, ps["50:3"].company) == ("Аналитик", "Acme")
+    assert ps["50:3"].work_formats == frozenset({WorkFormat.REMOTE})
+    assert ps["50:4"].work_formats == frozenset({WorkFormat.REMOTE})
+    assert ps["50:4"].company == "Acme" and ps["50:4"].cities == ()
+    assert (ps["50:5"].title, ps["50:5"].company) == ("Junior Dev", "Beta Corp")
+    assert ps["50:6"].company == "Telegram @newdirections"
+
+
+async def test_digest_detected_by_item_count_without_header():
+    body = "Свежие вакансии<br/>" + "<br/>".join(
+        item(n, f"Стажёр {n} в Acme") for n in range(1, 4)
+    )
+    with respx.mock:
+        mock_then_end(html(post_html(60, "2026-11-18T10:00:00+00:00", body)))
+        ps = await run()
+    assert [p.external_id for p in ps] == ["60:1", "60:2", "60:3"]
+
+
+async def test_digest_header_without_items_gives_nothing():
+    with respx.mock:
+        mock_then_end(html(post_html(61, "2026-11-18T10:00:00+00:00", "Подборка вакансий скоро")))
+        assert await run() == []
+
+
+async def test_bullet_lists_without_links_are_not_digests():
+    body = "Junior Dev / Acme<br/>- делать раз<br/>- делать два<br/>- делать три"
+    p = await fetch_one(body)
+    assert p.external_id == "1" and p.title == "Junior Dev"
+
+
+async def test_digest_items_pass_or_fail_the_filter():
+    body = digest_html(item(1, "Стажёр продуктовый аналитик в Ozon"), item(2, "Product Designer в X"),
+                       item(3, "Junior Data Analyst в Y"))
+    with respx.mock:
+        mock_then_end(html(post_html(70, "2026-11-18T10:00:00+00:00", body)))
+        ps = {p.external_id: p for p in await run()}
+    verdict = {k: evaluate(p, CONFIG.criteria) for k, p in ps.items()}
+    assert verdict["70:1"].accepted and verdict["70:3"].accepted
+    assert not verdict["70:2"].accepted
+
+
+@respx.mock
+async def test_digest_items_dedup_across_pages():
+    digest = post_html(80, "2026-11-18T10:00:00+00:00", digest_html(
+        item(1, "Стажёр A в X"), item(2, "Стажёр B в X"), item(3, "Стажёр C в X")))
+    first = html(digest)
+    second = html(digest, post_html(79, "2026-01-01T10:00:00+00:00"))
+    respx.get(URL).mock(
+        side_effect=[httpx.Response(200, text=first), httpx.Response(200, text=second)]
+    )
+    ps = await run()
+    assert [p.external_id for p in ps] == ["80:1", "80:2", "80:3"]

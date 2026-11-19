@@ -14,14 +14,16 @@ Only posts of the last `window_days` are returned; the pipeline closes the rest.
 """
 
 import asyncio
+import html
 import re
 import unicodedata
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
 from bs4 import BeautifulSoup
-from bs4.element import Tag
+from bs4.element import NavigableString, Tag
 
 from vacancy_bot.domain import Posting, WorkFormat
 
@@ -35,6 +37,10 @@ _LABEL = re.compile(r"^[\W_]*(?P<label>[^\W\d_]+)\s*:\s*(?P<value>.+)$")
 _TITLE_LABELS = ("позиция", "должность", "вакансия")
 _COMPANY_LABELS = ("компания",)
 _LOCATION_LABELS = ("локация", "город")
+_LABEL_BLOCK_LINES = 6  # labels count only in the post's leading block (up to a blank line)
+_ITEM_MARKERS = ("- ", "• ", "– ")
+_DIGEST_MIN_ITEMS = 3
+_TRAILING_PAREN = re.compile(r"\(([^()]*)\)\s*$")
 _LOCATION_NOISE = re.compile(r"\bг\.\s*|[()…;]")
 _CITY_MARKERS = ("🗺", "📍")
 _REMOTE = ("удалённ", "удаленн", "удалёнк", "удаленк", "remote")
@@ -81,6 +87,56 @@ def _own_text_node(node: Tag) -> Tag | None:
         ),
         None,
     )
+
+
+def _segments(text_node: Tag) -> list[tuple[str, Tag | None]]:
+    """The post text split on <br>: (text, first <a> of the line or None)."""
+    lines: list[list] = [[]]
+    for child in text_node.children:
+        if isinstance(child, Tag) and child.name == "br":
+            lines.append([])
+        else:
+            lines[-1].append(child)
+    result = []
+    for parts in lines:
+        text = "".join(
+            str(c) if isinstance(c, NavigableString) else c.get_text("") for c in parts
+        ).strip()
+        link = None
+        for c in parts:
+            if isinstance(c, Tag):
+                link = c if c.name == "a" else c.find("a")
+                if link is not None:
+                    break
+        result.append((text, link))
+    return result
+
+
+def _item_link(link: Tag | None) -> str | None:
+    """The item's own URL (not a t.me channel link), without utm tracking params."""
+    # hrefs in the preview are double-escaped ("&amp;amp;"): unescape until stable
+    href = str(link.get("href", "")) if link is not None else ""
+    while (unescaped := html.unescape(href)) != href:
+        href = unescaped
+    parts = urlsplit(href)
+    if parts.scheme not in ("http", "https") or parts.netloc.endswith("t.me"):
+        return None
+    query = [(k, v) for k, v in parse_qsl(parts.query) if not k.startswith("utm_")]
+    return urlunsplit(parts._replace(query=urlencode(query), fragment=""))
+
+
+def _is_item(text: str, link: Tag | None) -> bool:
+    return text.startswith(_ITEM_MARKERS) and _item_link(link) is not None
+
+
+def _split_item(body: str, default_company: str) -> tuple[str, str]:
+    """"Role в Company": split on the LAST " в "; else the title rules."""
+    if " в " in body:
+        left, _, right = body.rpartition(" в ")
+        left, right = _clean_edges(left), _clean_edges(right)
+        if left and right:
+            return left, right
+    return _split_title(body, default_company)
 
 
 def _split_title(first_line: str, default_company: str) -> tuple[str, str]:
@@ -148,10 +204,70 @@ class TelegramSource:
         # a quiet channel is normal, not a broken parser; a layout change raises in fetch()
         self.empty_alert_after_hours: int | None = params.get("empty_alert_after_hours")
 
-    def _map(self, node: Tag, number: int, published_at: datetime) -> Posting | None:
+    def _map(self, node: Tag, number: int, published_at: datetime) -> list[Posting]:
         text_node = _own_text_node(node)
         if text_node is None:
-            return None
+            return []
+        segments = _segments(text_node)
+        items = [(t, a) for t, a in segments if _is_item(t, a)]
+        first_text = next((t for t, _ in segments if _clean_edges(t)), "")
+        if "подборк" in first_text.lower() or len(items) >= _DIGEST_MIN_ITEMS:
+            return self._map_digest(items, number, published_at)
+        post = self._map_post(text_node, number, published_at)
+        return [post] if post else []
+
+    def _map_digest(
+        self, items: list[tuple[str, Tag | None]], number: int, published_at: datetime
+    ) -> list[Posting]:
+        """A digest post is a list of vacancies: one posting per item line, none for the post."""
+        postings = []
+        for index, (text, link) in enumerate(items, 1):
+            body = text[2:].strip()
+            url = _item_link(link)
+            link_text = link.get_text("").strip() if link is not None else ""
+            trailing = ""
+            if link_text and body.startswith(link_text):
+                trailing = body[len(link_text):].strip()
+                body = link_text
+            cities: tuple[str, ...] = ()
+            formats: frozenset[WorkFormat] = frozenset()
+            if trailing:  # "(Армения)", "(удалённо)" after the link
+                cities, formats = _parse_location(trailing)
+            match = _TRAILING_PAREN.search(body)
+            if match and any(
+                w in match[1].lower() for w in (*_REMOTE, *_HYBRID, *_OFFICE)
+            ):
+                _, inner_formats = _parse_location(match[1])
+                formats |= inner_formats
+                body = body[: match.start()].strip()
+            title, company = _split_item(_clean_edges(body), f"Telegram @{self._channel}")
+            if not title:
+                continue
+            postings.append(
+                Posting(
+                    source=self.name,
+                    external_id=f"{number}:{index}",
+                    url=url or f"https://t.me/{self._channel}/{number}",
+                    company=company,
+                    title=title,
+                    cities=cities,
+                    work_formats=formats,
+                    employment=None,
+                    experience_years_min=None,
+                    description="",
+                    published_at=published_at,
+                    raw={
+                        "channel": self._channel,
+                        "post": str(number),
+                        "item": index,
+                        "text": text[:2000],
+                    },
+                    require_level_keyword=bool(self._params.get("require_level_keyword", False)),
+                )
+            )
+        return postings
+
+    def _map_post(self, text_node: Tag, number: int, published_at: datetime) -> Posting | None:
         text = _text_of(text_node).strip()
         lines = [line.strip() for line in text.split("\n")]
         first = next((i for i, line in enumerate(lines) if _clean_edges(line)), None)
@@ -164,10 +280,15 @@ class TelegramSource:
             if line.startswith(_CITY_MARKERS):
                 cities, formats = _parse_location(line)
                 break
-        # labelled lines ("Позиция: ...", "Компания: ...", "Локация: ...") win over heuristics
+        # labelled lines ("Позиция: ...", "Компания: ...", "Локация: ...") win over heuristics,
+        # but only in the leading block: a body line "Компания: мы растём" must not count
+        block_end = next(
+            (i for i, line in enumerate(lines[:_LABEL_BLOCK_LINES]) if not line),
+            min(len(lines), _LABEL_BLOCK_LINES),
+        )
         labelled: dict[str, str] = {}
         consumed = {first}
-        for i, line in enumerate(lines):
+        for i, line in enumerate(lines[:block_end]):
             match = _LABEL.match(line)
             if not match:
                 continue
@@ -239,7 +360,8 @@ class TelegramSource:
     async def fetch(self) -> list[Posting]:
         cutoff = self._now() - timedelta(days=self._params.get("window_days", 14))
         max_pages = self._params.get("max_pages", 10)
-        found: dict[int, Posting | None] = {}
+        seen: set[int] = set()
+        found: dict[str, Posting] = {}
         before: int | None = None
         for page in range(max_pages):
             if page:
@@ -258,10 +380,12 @@ class TelegramSource:
                     "the preview layout probably changed"
                 )
             for number, published_at, node in posts:
-                if number in found or published_at < cutoff:
+                if number in seen or published_at < cutoff:
                     continue
+                seen.add(number)
                 try:
-                    found[number] = self._map(node, number, published_at)
+                    for posting in self._map(node, number, published_at):
+                        found.setdefault(posting.external_id, posting)
                 except (ValueError, KeyError, TypeError, AttributeError) as exc:
                     raise RuntimeError(
                         f"{self.name}: cannot parse post {number}: "
@@ -275,4 +399,4 @@ class TelegramSource:
                 f"{self.name}: window not reached after max_pages={max_pages}; "
                 "raise sources.telegram.max_pages or shorten window_days"
             )
-        return [p for p in found.values() if p is not None]
+        return list(found.values())
