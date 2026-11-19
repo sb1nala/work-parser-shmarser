@@ -40,10 +40,11 @@ class Posting:
     description: str
     published_at: datetime | None
     raw: dict
+    require_level_keyword: bool = False  # True: отсев, если в названии нет слова уровня (посты каналов)
 
 
 @dataclass(frozen=True)
 class Decision:
     accepted: bool
-    reason: str | None  # код отсева
+    reason: str | None  # код отсева: seniority | excluded_role | not_relevant | no_level_keyword | experience | location | employment
     flags: tuple[str, ...]  # city_unknown | format_unknown | experience_unknown | employment_unknown

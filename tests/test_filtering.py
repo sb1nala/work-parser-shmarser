@@ -130,3 +130,35 @@ def test_unknown_experience_with_level_word_no_flag(criteria):
 def test_rejects_disallowed_employment(criteria):
     d = evaluate(make_posting(employment=Employment.OTHER), criteria)
     assert d.reason == "employment"
+
+
+def test_channel_post_without_level_word_rejected(criteria):
+    d = evaluate(
+        make_posting(
+            title="Осталось несколько дней, чтобы подать заявку на AI Analytics Week",
+            experience_years_min=None,
+            require_level_keyword=True,
+        ),
+        criteria,
+    )
+    assert d.reason == "no_level_keyword"
+
+
+def test_channel_post_with_level_word_accepted(criteria):
+    d = evaluate(
+        make_posting(
+            title="Стажёр-аналитик данных",
+            experience_years_min=None,
+            require_level_keyword=True,
+        ),
+        criteria,
+    )
+    assert d.accepted
+
+
+def test_site_post_unaffected_by_level_rule(criteria):
+    d = evaluate(
+        make_posting(title="Аналитик данных", experience_years_min=None), criteria
+    )
+    assert d.accepted
+    assert "experience_unknown" in d.flags

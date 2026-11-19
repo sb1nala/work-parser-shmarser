@@ -32,6 +32,8 @@ def evaluate(posting: Posting, criteria: Criteria) -> Decision:
         return _reject("excluded_role")
     if not _has_any(t, criteria.direction_keywords):
         return _reject("not_relevant")
+    if posting.require_level_keyword and not _has_any(t, criteria.level_keywords):
+        return _reject("no_level_keyword")
 
     exp = posting.experience_years_min
     if exp is not None and exp > criteria.max_experience_years:
