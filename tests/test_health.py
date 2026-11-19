@@ -92,3 +92,14 @@ async def test_alert_text_is_html_escaped(session, cfg):
     await fresh_state(session)
     msg = await health_alert(session, bad("GET https://x/?a=1&b=2 -> <html>"), cfg, T0)
     assert msg == "❗ Источник tbank упал: GET https://x/?a=1&amp;b=2 -&gt; &lt;html&gt;"
+
+
+async def test_per_source_threshold_overrides_config(session, cfg):
+    await fresh_state(session)  # config threshold is 24 h
+    quiet = RunResult(
+        source="tbank", ok=True, fetched=0, error=None, quiet_count=None,
+        empty_alert_after_hours=720,
+    )
+    assert await health_alert(session, quiet, cfg, T0 + timedelta(hours=100)) is None
+    msg = await health_alert(session, quiet, cfg, T0 + timedelta(hours=721))
+    assert msg == "⚠️ Источник tbank ничего не возвращает больше 720 ч — возможно, сломался парсер"

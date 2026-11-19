@@ -16,6 +16,7 @@ from vacancy_bot.sources.hh import HHSource
 from vacancy_bot.sources.registry import build_sources
 from vacancy_bot.sources.sber import SberSource
 from vacancy_bot.sources.tbank import TBankSource
+from vacancy_bot.sources.telegram import TelegramSource
 from vacancy_bot.sources.vtb import VTBSource
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
@@ -128,9 +129,11 @@ def settings(token=None) -> Settings:
     )
 
 
-async def names(cfg, token=None):
+async def names(cfg, token=None, telegram=False):
+    """Source types built from cfg; Telegram ones only on request (they have their own tests)."""
     async with httpx.AsyncClient() as http:
-        return [type(s) for s in build_sources(cfg, http, settings(token))]
+        types = [type(s) for s in build_sources(cfg, http, settings(token))]
+    return [t for t in types if telegram or t is not TelegramSource]
 
 
 async def test_registry_default_config_skips_hh(cfg):
@@ -217,3 +220,23 @@ async def test_notify_reports_success():
 
     assert await _notify(FakeBot(), 1, "hi") is True
     assert await _notify(FakeBot(fail=True), 1, "hi") is False
+
+
+async def test_registry_builds_telegram_source_per_channel(cfg):
+    on = replace(
+        cfg,
+        sources={
+            **cfg.sources,
+            "telegram": {**cfg.sources["telegram"], "enabled": True, "channels": ["aa", "bb"]},
+        },
+    )
+    async with httpx.AsyncClient() as http:
+        built = [s for s in build_sources(on, http, settings()) if isinstance(s, TelegramSource)]
+    assert [s.name for s in built] == ["tg_aa", "tg_bb"]
+
+
+async def test_registry_telegram_disabled_builds_none(cfg):
+    off = replace(
+        cfg, sources={**cfg.sources, "telegram": {**cfg.sources["telegram"], "enabled": False}}
+    )
+    assert await names(off, telegram=True) == await names(off)

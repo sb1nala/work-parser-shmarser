@@ -180,6 +180,14 @@ async def test_run_source_success(sm, cfg):
         assert (await s.execute(select(SourceRunRow))).scalar_one().ok
 
 
+async def test_run_source_passes_source_empty_alert_threshold(sm, cfg):
+    quiet = FakeSource("tg_x", [])
+    quiet.empty_alert_after_hours = 720
+    assert (await run_source(sm, quiet, cfg, lambda: T0)).empty_alert_after_hours == 720
+    plain = FakeSource("hh", [])
+    assert (await run_source(sm, plain, cfg, lambda: T0)).empty_alert_after_hours is None
+
+
 async def test_rejected_posting_stored_with_reason(session, cfg):
     await process_postings(session, "hh", [mk(title="Senior Data Scientist")], cfg, T0)
     (v,) = await all_vacancies(session)

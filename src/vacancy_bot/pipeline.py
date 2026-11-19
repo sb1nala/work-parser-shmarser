@@ -33,6 +33,7 @@ class RunResult:
     fetched: int
     error: str | None
     quiet_count: int | None  # not None for a quiet (first) run: number of matching open vacancies
+    empty_alert_after_hours: int | None = None  # per-source override of the config threshold
 
 
 def _new_season(closed_at: datetime | None, cfg: AppConfig, now: datetime) -> bool:
@@ -220,4 +221,11 @@ async def run_source(
         except BaseException:
             await s.rollback()
             raise
-    return RunResult(src.name, ok=True, fetched=len(batch), error=None, quiet_count=quiet)
+    return RunResult(
+        src.name,
+        ok=True,
+        fetched=len(batch),
+        error=None,
+        quiet_count=quiet,
+        empty_alert_after_hours=getattr(src, "empty_alert_after_hours", None),
+    )
