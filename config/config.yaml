@@ -134,4 +134,6 @@ sources:
     window_days: 14
     max_pages: 10
     require_level_keyword: true
+    # тихий канал - норма, а не поломка парсера (смена вёрстки ловится ошибкой при сборе)
+    empty_alert_after_hours: 720
     channels: [newdirections, not_boring_ds_jobs, young_june]

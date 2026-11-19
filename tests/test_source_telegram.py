@@ -71,9 +71,9 @@ async def test_maps_structured_post():
     assert p.raw["channel"] == "newdirections" and p.raw["post"] == "7154"
     assert p.raw["text"].startswith("Помощник менеджера проектов / Бельведер")
 
-    remote = postings["7165"]  # only the first " / " splits
-    assert remote.title == "Junior AI Product Manager"
-    assert remote.company == "AI-продакт / Changellenge"
+    remote = postings["7165"]  # only the last " / " splits
+    assert remote.title == "Junior AI Product Manager / AI-продакт"
+    assert remote.company == "Changellenge"
     assert remote.cities == ("Москва",)
     assert remote.work_formats == frozenset({WorkFormat.REMOTE})
 
@@ -256,3 +256,73 @@ async def test_br_becomes_newline():
     p = await fetch_one("Junior Dev / Acme<br>строка 1<br><br>строка 2")
     assert p.description == "строка 1\n\nстрока 2"
     assert p.raw["text"] == "Junior Dev / Acme\nстрока 1\n\nстрока 2"
+
+
+@pytest.mark.parametrize(
+    ("text", "title", "company"),
+    [
+        ("Стажер LLM / AI-агенты / ПАО Сбербанк", "Стажер LLM / AI-агенты", "ПАО Сбербанк"),
+        ("Стажёр / менеджер проекта / Компания", "Стажёр / менеджер проекта", "Компания"),
+        (
+            "UX/UI дизайнер (Web / Mobile) / MULTIBROKER",
+            "UX/UI дизайнер (Web / Mobile)",
+            "MULTIBROKER",
+        ),
+        ("Role | A / B — C", "Role | A", "B — C"),  # " / " wins over the other separators
+        ("Role — Acme | Beta", "Role", "Acme | Beta"),  # first occurrence of " — " / " | "
+    ],
+)
+async def test_split_on_last_slash_separator(text, title, company):
+    p = await fetch_one(text)
+    assert (p.title, p.company) == (title, company)
+
+
+async def test_labelled_post():
+    p = await fetch_one(
+        "Позиция: Стажер дата-аналитик<br>Компания: Х5 Group<br>"
+        "Локация: Удаленная работа (…г. Москва)<br><br>Задачи: считать"
+    )
+    assert p.title == "Стажер дата-аналитик"
+    assert p.company == "Х5 Group"
+    assert p.work_formats == frozenset({WorkFormat.REMOTE})
+    assert p.cities == ("Москва",)
+    assert p.description == "Задачи: считать"
+
+
+async def test_labels_override_heuristics_and_ignore_bullets_and_case():
+    p = await fetch_one(
+        "Что-то / Другое<br>🗺 Омск<br>• ДОЛЖНОСТЬ: Junior Dev<br>"
+        "🏢 компания: Acme<br>Город: Казань. Гибрид"
+    )
+    assert (p.title, p.company) == ("Junior Dev", "Acme")
+    assert p.cities == ("Казань",)
+    assert p.work_formats == frozenset({WorkFormat.HYBRID})
+    assert "Acme" not in p.description and "Junior Dev" not in p.description
+
+
+@respx.mock
+async def test_first_page_with_posts_but_no_text_raises():
+    textless = html(post_html(2, "2026-11-18T10:00:00+00:00", None),
+                    post_html(1, "2026-11-18T09:00:00+00:00", None))
+    respx.get(URL).mock(return_value=httpx.Response(200, text=textless))
+    with pytest.raises(RuntimeError, match="layout"):
+        await run()
+
+
+@respx.mock
+async def test_later_textless_page_is_fine():
+    first = html(post_html(10, "2026-11-18T10:00:00+00:00"))
+    second = html(post_html(9, "2026-11-18T09:00:00+00:00", None),
+                  post_html(8, "2026-01-01T09:00:00+00:00", None))
+    respx.get(URL).mock(
+        side_effect=[httpx.Response(200, text=first), httpx.Response(200, text=second)]
+    )
+    assert [p.external_id for p in await run()] == ["10"]
+
+
+async def test_empty_alert_threshold_comes_from_config():
+    async with httpx.AsyncClient() as http:
+        quiet = TelegramSource(http, "x", params(empty_alert_after_hours=720))
+        default = TelegramSource(http, "x", params())
+    assert quiet.empty_alert_after_hours == 720
+    assert default.empty_alert_after_hours is None

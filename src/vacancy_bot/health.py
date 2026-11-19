@@ -36,7 +36,7 @@ async def health_alert(
         state.empty_alerted = False
     else:
         reference = state.last_nonempty_at or state.created_at
-        limit = cfg.empty_alert_after_hours
+        limit = result.empty_alert_after_hours or cfg.empty_alert_after_hours
         if not state.empty_alerted and now - reference > timedelta(hours=limit):
             state.empty_alerted = True
             messages.append(

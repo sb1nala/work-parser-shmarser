@@ -129,30 +129,32 @@ def settings(token=None) -> Settings:
     )
 
 
-async def names(cfg, token=None):
+async def names(cfg, token=None, telegram=False):
+    """Source types built from cfg; Telegram ones only on request (they have their own tests)."""
     async with httpx.AsyncClient() as http:
-        return [type(s) for s in build_sources(cfg, http, settings(token))]
+        types = [type(s) for s in build_sources(cfg, http, settings(token))]
+    return [t for t in types if telegram or t is not TelegramSource]
 
 
 async def test_registry_default_config_skips_hh(cfg):
-    assert await names(cfg) == [TBankSource, SberSource, VTBSource, AlfaSource, TelegramSource, TelegramSource, TelegramSource]
+    assert await names(cfg) == [TBankSource, SberSource, VTBSource, AlfaSource]
 
 
 async def test_registry_hh_enabled_with_token(cfg):
     on = replace(cfg, sources={**cfg.sources, "hh": {**cfg.sources["hh"], "enabled": True}})
-    assert await names(on, "tok") == [HHSource, TBankSource, SberSource, VTBSource, AlfaSource, TelegramSource, TelegramSource, TelegramSource]
+    assert await names(on, "tok") == [HHSource, TBankSource, SberSource, VTBSource, AlfaSource]
 
 
 async def test_registry_hh_enabled_without_token_warns(cfg, caplog):
     on = replace(cfg, sources={**cfg.sources, "hh": {**cfg.sources["hh"], "enabled": True}})
     with caplog.at_level(logging.WARNING):
-        assert await names(on) == [TBankSource, SberSource, VTBSource, AlfaSource, TelegramSource, TelegramSource, TelegramSource]
+        assert await names(on) == [TBankSource, SberSource, VTBSource, AlfaSource]
     assert "HH_ACCESS_TOKEN" in caplog.text
 
 
 async def test_registry_respects_disabled(cfg):
     off = replace(cfg, sources={**cfg.sources, "sber": {**cfg.sources["sber"], "enabled": False}})
-    assert await names(off) == [TBankSource, VTBSource, AlfaSource, TelegramSource, TelegramSource, TelegramSource]
+    assert await names(off) == [TBankSource, VTBSource, AlfaSource]
 
 
 async def test_run_cycle_commits_health_state(sm, cfg):
@@ -191,12 +193,12 @@ async def test_only_tbank_and_alfa_get_dedicated_client(cfg):
 
 async def test_registry_respects_disabled_vtb(cfg):
     off = replace(cfg, sources={**cfg.sources, "vtb": {**cfg.sources["vtb"], "enabled": False}})
-    assert await names(off) == [TBankSource, SberSource, AlfaSource, TelegramSource, TelegramSource, TelegramSource]
+    assert await names(off) == [TBankSource, SberSource, AlfaSource]
 
 
 async def test_registry_respects_disabled_alfa(cfg):
     off = replace(cfg, sources={**cfg.sources, "alfa": {**cfg.sources["alfa"], "enabled": False}})
-    assert await names(off) == [TBankSource, SberSource, VTBSource, TelegramSource, TelegramSource, TelegramSource]
+    assert await names(off) == [TBankSource, SberSource, VTBSource]
 
 
 async def test_alert_not_persisted_when_send_fails_and_retried(sm, cfg):
@@ -237,4 +239,4 @@ async def test_registry_telegram_disabled_builds_none(cfg):
     off = replace(
         cfg, sources={**cfg.sources, "telegram": {**cfg.sources["telegram"], "enabled": False}}
     )
-    assert TelegramSource not in await names(off)
+    assert await names(off, telegram=True) == await names(off)

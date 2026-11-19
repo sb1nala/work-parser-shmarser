@@ -14,6 +14,7 @@ Only posts of the last `window_days` are returned; the pipeline closes the rest.
 """
 
 import asyncio
+import re
 import unicodedata
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
@@ -29,9 +30,14 @@ USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/124.0.0.0 Safari/537.36"
 )
-_SEPARATORS = (" / ", " — ", " | ")
+_SEPARATORS = (" — ", " | ")  # used only when the title has no " / "
+_LABEL = re.compile(r"^[\W_]*(?P<label>[^\W\d_]+)\s*:\s*(?P<value>.+)$")
+_TITLE_LABELS = ("позиция", "должность", "вакансия")
+_COMPANY_LABELS = ("компания",)
+_LOCATION_LABELS = ("локация", "город")
+_LOCATION_NOISE = re.compile(r"\bг\.\s*|[()…;]")
 _CITY_MARKERS = ("🗺", "📍")
-_REMOTE = ("удалённо", "удаленно", "удалёнка", "удаленка", "remote")
+_REMOTE = ("удалённ", "удаленн", "удалёнк", "удаленк", "remote")
 _HYBRID = ("гибрид", "hybrid")
 _OFFICE = ("офис", "office")
 
@@ -65,21 +71,40 @@ def _text_of(node: Tag) -> str:
     return node.get_text("")
 
 
+def _own_text_node(node: Tag) -> Tag | None:
+    # a reply's quoted preview is also .tgme_widget_message_text: take the post's own
+    return next(
+        (
+            n
+            for n in node.select(".tgme_widget_message_text")
+            if n.find_parent(class_="tgme_widget_message_reply") is None
+        ),
+        None,
+    )
+
+
 def _split_title(first_line: str, default_company: str) -> tuple[str, str]:
-    found = [(first_line.find(sep), sep) for sep in _SEPARATORS if sep in first_line]
-    if found:
+    """Split "Role / Company" on the LAST " / " (the role may contain slashes itself);
+    " — " / " | " (first occurrence) only when there is no " / "."""
+    if " / " in first_line:
+        left, _, right = first_line.rpartition(" / ")
+    else:
+        found = [(first_line.find(sep), sep) for sep in _SEPARATORS if sep in first_line]
+        if not found:
+            return first_line, default_company
         index, sep = min(found)
-        left = _clean_edges(first_line[:index])
-        right = _clean_edges(first_line[index + len(sep):])
-        if left and right:
-            return left, right
+        left, right = first_line[:index], first_line[index + len(sep):]
+    left, right = _clean_edges(left), _clean_edges(right)
+    if left and right:
+        return left, right
     return first_line, default_company
 
 
 def _parse_location(line: str) -> tuple[tuple[str, ...], frozenset[WorkFormat]]:
     cities: list[str] = []
     formats: set[WorkFormat] = set()
-    for chunk in _clean_edges(line).replace(",", ".").split("."):
+    text = _LOCATION_NOISE.sub(",", _clean_edges(line))
+    for chunk in text.replace(",", ".").split("."):
         part = chunk.strip()
         if not part:
             continue
@@ -120,17 +145,11 @@ class TelegramSource:
         self._delay = delay
         self._now = now
         self.name = f"tg_{channel}"
+        # a quiet channel is normal, not a broken parser; a layout change raises in fetch()
+        self.empty_alert_after_hours: int | None = params.get("empty_alert_after_hours")
 
     def _map(self, node: Tag, number: int, published_at: datetime) -> Posting | None:
-        # a reply's quoted preview is also .tgme_widget_message_text: take the post's own
-        text_node = next(
-            (
-                n
-                for n in node.select(".tgme_widget_message_text")
-                if n.find_parent(class_="tgme_widget_message_reply") is None
-            ),
-            None,
-        )
+        text_node = _own_text_node(node)
         if text_node is None:
             return None
         text = _text_of(text_node).strip()
@@ -145,6 +164,32 @@ class TelegramSource:
             if line.startswith(_CITY_MARKERS):
                 cities, formats = _parse_location(line)
                 break
+        # labelled lines ("Позиция: ...", "Компания: ...", "Локация: ...") win over heuristics
+        labelled: dict[str, str] = {}
+        consumed = {first}
+        for i, line in enumerate(lines):
+            match = _LABEL.match(line)
+            if not match:
+                continue
+            label, value = match["label"].lower(), _clean_edges(match["value"])
+            kind = (
+                "title" if label in _TITLE_LABELS
+                else "company" if label in _COMPANY_LABELS
+                else "location" if label in _LOCATION_LABELS
+                else None
+            )
+            if kind and value and kind not in labelled:
+                labelled[kind] = value
+                consumed.add(i)
+        if "title" in labelled:
+            title = labelled["title"]
+        if "company" in labelled:
+            company = labelled["company"]
+        if "location" in labelled:
+            cities, formats = _parse_location(labelled["location"])
+        description = "\n".join(
+            line for i, line in enumerate(lines) if i > first and i not in consumed
+        ).strip()
         return Posting(
             source=self.name,
             external_id=str(number),
@@ -155,7 +200,7 @@ class TelegramSource:
             work_formats=formats,
             employment=None,
             experience_years_min=None,
-            description="\n".join(lines[first + 1:]).strip(),
+            description=description,
             published_at=published_at,
             raw={"channel": self._channel, "post": str(number), "text": text[:2000]},
             require_level_keyword=bool(self._params.get("require_level_keyword", False)),
@@ -207,6 +252,11 @@ class TelegramSource:
                         "missing, renamed or has no public preview"
                     )
                 break  # ran out of history
+            if page == 0 and not any(_own_text_node(node) for _, _, node in posts):
+                raise RuntimeError(
+                    f"{self.name}: {len(posts)} posts on the first page but none has text; "
+                    "the preview layout probably changed"
+                )
             for number, published_at, node in posts:
                 if number in found or published_at < cutoff:
                     continue
