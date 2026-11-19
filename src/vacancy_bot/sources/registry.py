@@ -8,12 +8,15 @@ import httpx
 from vacancy_bot.config import AppConfig
 from vacancy_bot.settings import Settings
 from vacancy_bot.sources.alfa import AlfaSource
+from vacancy_bot.sources.avito import AvitoSource
 from vacancy_bot.sources.base import Source
 from vacancy_bot.sources.hh import HHSource
 from vacancy_bot.sources.sber import SberSource
 from vacancy_bot.sources.tbank import TBankSource
 from vacancy_bot.sources.telegram import TelegramSource
+from vacancy_bot.sources.vk import VKSource
 from vacancy_bot.sources.vtb import VTBSource
+from vacancy_bot.sources.yandex import YandexSource
 
 log = logging.getLogger(__name__)
 
@@ -61,6 +64,15 @@ def build_sources(
     alfa = cfg.sources.get("alfa")
     if alfa and alfa.get("enabled"):
         sources.append(AlfaSource(ru_ca_http or http, alfa))
+    yandex = cfg.sources.get("yandex")
+    if yandex and yandex.get("enabled"):
+        sources.append(YandexSource(http, yandex))  # yandex.ru verifies with certifi
+    vk = cfg.sources.get("vk")
+    if vk and vk.get("enabled"):
+        sources.append(VKSource(http, vk))  # team/internship.vk.company verify with certifi
+    avito = cfg.sources.get("avito")
+    if avito and avito.get("enabled"):
+        sources.append(AvitoSource(http, avito))  # career.avito.com verifies with certifi
     telegram = cfg.sources.get("telegram")
     if telegram and telegram.get("enabled"):
         for channel in telegram.get("channels") or []:

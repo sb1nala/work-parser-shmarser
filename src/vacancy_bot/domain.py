@@ -40,7 +40,7 @@ class Posting:
     description: str
     published_at: datetime | None
     raw: dict
-    require_level_keyword: bool = False  # True: отсев, если в названии нет слова уровня (посты каналов)
+    require_level_keyword: bool = False  # True: отсев, если нет слова уровня в названии, Employment.INTERNSHIP и нулевого опыта (каналы, Авито)
 
 
 @dataclass(frozen=True)

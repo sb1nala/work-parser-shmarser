@@ -136,6 +136,7 @@ def test_channel_post_without_level_word_rejected(criteria):
     d = evaluate(
         make_posting(
             title="Осталось несколько дней, чтобы подать заявку на AI Analytics Week",
+            employment=None,
             experience_years_min=None,
             require_level_keyword=True,
         ),
@@ -162,3 +163,31 @@ def test_site_post_unaffected_by_level_rule(criteria):
     )
     assert d.accepted
     assert "experience_unknown" in d.flags
+
+
+def level_rule_decision(criteria, **kw):
+    return evaluate(
+        make_posting(title="Аналитик данных", require_level_keyword=True, **kw), criteria
+    )
+
+
+def test_level_rule_passes_internship_employment_without_level_word(criteria):
+    d = level_rule_decision(criteria, employment=Employment.INTERNSHIP, experience_years_min=None)
+    assert d.accepted
+
+
+def test_level_rule_passes_zero_experience_without_level_word(criteria):
+    d = level_rule_decision(criteria, employment=Employment.FULL, experience_years_min=0)
+    assert d.accepted
+
+
+def test_level_rule_rejects_when_neither_level_word_internship_nor_zero_experience(criteria):
+    d = level_rule_decision(criteria, employment=Employment.FULL, experience_years_min=None)
+    assert d.reason == "no_level_keyword"
+    d = level_rule_decision(criteria, employment=None, experience_years_min=None)
+    assert d.reason == "no_level_keyword"
+
+
+def test_teamlead_titles_are_rejected_as_seniority(criteria):
+    for title in ("Тимлид DS-команды IMV", "Team Lead аналитики", "Teamlead ML"):
+        assert evaluate(make_posting(title=title), criteria).reason == "seniority"

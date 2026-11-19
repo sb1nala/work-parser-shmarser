@@ -18,7 +18,7 @@ criteria:
     - bi
     - product analyst
     - ds
-  seniority_stopwords: [middle, senior, lead, ведущий, старший, главный, руководитель, head, principal]
+  seniority_stopwords: [middle, senior, lead, ведущий, старший, главный, руководитель, head, principal, тимлид, team lead, teamlead]
   excluded_role_patterns:
     - 1с
     - 1c
@@ -45,10 +45,18 @@ company_aliases:
   втб: втб
   банк втб: втб
   банк втб (пао): втб
+  yandex: яндекс
+  яндекс: яндекс
+  vk: vk
+  вк: vk
+  вконтакте: vk
+  vk tech: vk
+  avito: авито
+  авито: авито
 
 schedule:
   every_hours: 4
-source_timeout_seconds: 120
+source_timeout_seconds: 300
 empty_alert_after_hours: 72
 # Вакансия, пропавшая из источника меньше чем на столько часов и вернувшаяся,
 # открывается молча (это сбой выдачи, а не новый набор). Дольше — «🔁 снова открыта».
@@ -125,6 +133,108 @@ sources:
     business_lines: ['1022', '1018']
     take: 100
     max_pages: 10
+  yandex:
+    enabled: true
+    # yandex.ru/jobs/api/publications (открытый JSON, без токенов и капчи): ~290 публикаций
+    # целиком, поэтому запрос сужен профессиями (slug из фильтра на yandex.ru/jobs/vacancies;
+    # ~43 публикации) и грейдом intern/junior (pro_levels, совпадает по границе диапазона
+    # грейдов; сейчас 3 публикации). Грейд виден только в карточке, поэтому на каждую
+    # найденную публикацию делается один запрос к GET .../publications/<id>.
+    # Стажировки (yandex.ru/yaintern) на самом деле те же публикации с грейдом intern.
+    professions:
+      - analyst
+      - analyst-developer
+      - ml-developer
+      - ml-researcher
+      - data-engineer
+      - marketing-analyst
+      - financial-analyst
+      - product-manager
+      - hr-analyst
+      - data-processing-operator
+      - ai-trainer
+    pro_levels: [intern, junior]
+    page_size: 40
+    max_pages: 10
+    # сезонная пустота (нет вакансий грейда intern/junior) - норма; смена формата API ловится ошибкой
+    empty_alert_after_hours: 720
+  vk:
+    enabled: true
+    # team.vk.company/career/api/v2/vacancies (открытый JSON, без токенов): ~230 вакансий целиком,
+    # поэтому запрос сужен специальностями (сервер принимает одну specialty за запрос, значит
+    # по запросу на каждую; id из фильтра на team.vk.company/vacancy): 268 BI аналитика,
+    # 269 Data-аналитика, 281 Data Science, 283 Machine Learning, 295 Продуктовая аналитика,
+    # 316 Бизнес-аналитика (~47 вакансий). Уровень и описание есть только на странице
+    # team.vk.company/vacancy/<id>/, поэтому на каждую вакансию делается один запрос страницы.
+    # portal_pages: стажировки и junior-вакансии internship.vk.company (список зашит в
+    # __NEXT_DATA__ страницы, отдельного API нет): /internship и /vacancy (пока пусто);
+    # пустой список отключает портал. page_size: сервер отдаёт максимум 50.
+    specialties: [268, 269, 281, 283, 295, 316]
+    page_size: 50
+    max_pages: 10
+    portal_pages: [internship, vacancy]
+  avito:
+    enabled: true
+    # career.avito.com: Bitrix-сайт, JSON API нет, списки отдаются сервером в HTML (без токенов
+    # и капчи, TLS по публичному CA). /vacancies/ показывает по 4 вакансии на раздел, поэтому
+    # читаются страницы направлений /vacancies/<slug>/ (на каждой все вакансии направления, ~126
+    # вакансий в 16 непустых направлениях); счётчики разделов с главной страницы сверяются с
+    # числом найденных, обрезанный список падает с ошибкой. directions: все направления сайта
+    # (значения radio-фильтра на /vacancies/), чтобы видеть флаг «Стажировка» у любой вакансии;
+    # он ловится в любом направлении. keep_directions: направления, вакансии которых берутся
+    # целиком (на каждую одна страница вакансии за датой и описанием; сейчас ~58 вакансий).
+    # Флаг стажировки сейчас ни у одной вакансии не стоит (программы на start.avito.ru закрыты).
+    directions:
+      - prodazhi
+      - razrabotka
+      - analitika-dannykh
+      - marketing
+      - data-science
+      - upravlenie-produktom
+      - hr
+      - pr
+      - razvitie-biznesa
+      - finansy-zakupki-i-audit
+      - ux-issledovaniya
+      - ux-redaktsiya
+      - informatsionnaya-bezopasnost
+      - strategiya-i-m-a
+      - tekhpodderzhka
+      - yurisprudentsiya-i-gr
+      - avtomatizatsiya-biznes-protsessov-1c
+      - administrativnaya-rabota
+      - dizayn
+      - klientskiy-servis
+      - logistika
+      - upravlenie-biznes-protsessami
+    # sections: slug направления -> название раздела на /vacancies/ (его счётчик сверяется с числом
+    # найденных вакансий; у пустых направлений раздела на главной нет).
+    sections:
+      prodazhi: Продажи
+      razrabotka: Разработка
+      analitika-dannykh: Аналитика данных
+      marketing: Маркетинг
+      data-science: Data Science
+      upravlenie-produktom: Управление продуктом
+      hr: HR
+      pr: PR
+      razvitie-biznesa: Развитие бизнеса
+      finansy-zakupki-i-audit: Финансы, закупки и аудит
+      ux-issledovaniya: UX-исследования
+      ux-redaktsiya: UX-редакция
+      informatsionnaya-bezopasnost: Информационная безопасность
+      strategiya-i-m-a: Стратегия и M&A
+      tekhpodderzhka: Техподдержка
+      yurisprudentsiya-i-gr: Юриспруденция и GR
+    # require_level_keyword: без слова уровня в названии, стажировки и нулевого опыта вакансия
+    # отсеивается (опыт у Авито виден только в свободном тексте, иначе шли бы все мид/сеньор).
+    require_level_keyword: true
+    keep_directions:
+      - analitika-dannykh
+      - data-science
+      - razrabotka
+      - upravlenie-produktom
+      - finansy-zakupki-i-audit
   telegram:
     enabled: true
     # публичное превью каналов https://t.me/s/<канал> (без токенов): посты за последние
