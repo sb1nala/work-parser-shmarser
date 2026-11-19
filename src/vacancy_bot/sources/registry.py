@@ -12,6 +12,7 @@ from vacancy_bot.sources.base import Source
 from vacancy_bot.sources.hh import HHSource
 from vacancy_bot.sources.sber import SberSource
 from vacancy_bot.sources.tbank import TBankSource
+from vacancy_bot.sources.telegram import TelegramSource
 from vacancy_bot.sources.vtb import VTBSource
 
 log = logging.getLogger(__name__)
@@ -60,4 +61,8 @@ def build_sources(
     alfa = cfg.sources.get("alfa")
     if alfa and alfa.get("enabled"):
         sources.append(AlfaSource(ru_ca_http or http, alfa))
+    telegram = cfg.sources.get("telegram")
+    if telegram and telegram.get("enabled"):
+        for channel in telegram.get("channels") or []:
+            sources.append(TelegramSource(http, channel, telegram))
     return sources

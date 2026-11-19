@@ -16,6 +16,7 @@ from vacancy_bot.sources.hh import HHSource
 from vacancy_bot.sources.registry import build_sources
 from vacancy_bot.sources.sber import SberSource
 from vacancy_bot.sources.tbank import TBankSource
+from vacancy_bot.sources.telegram import TelegramSource
 from vacancy_bot.sources.vtb import VTBSource
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
@@ -134,24 +135,24 @@ async def names(cfg, token=None):
 
 
 async def test_registry_default_config_skips_hh(cfg):
-    assert await names(cfg) == [TBankSource, SberSource, VTBSource, AlfaSource]
+    assert await names(cfg) == [TBankSource, SberSource, VTBSource, AlfaSource, TelegramSource, TelegramSource, TelegramSource]
 
 
 async def test_registry_hh_enabled_with_token(cfg):
     on = replace(cfg, sources={**cfg.sources, "hh": {**cfg.sources["hh"], "enabled": True}})
-    assert await names(on, "tok") == [HHSource, TBankSource, SberSource, VTBSource, AlfaSource]
+    assert await names(on, "tok") == [HHSource, TBankSource, SberSource, VTBSource, AlfaSource, TelegramSource, TelegramSource, TelegramSource]
 
 
 async def test_registry_hh_enabled_without_token_warns(cfg, caplog):
     on = replace(cfg, sources={**cfg.sources, "hh": {**cfg.sources["hh"], "enabled": True}})
     with caplog.at_level(logging.WARNING):
-        assert await names(on) == [TBankSource, SberSource, VTBSource, AlfaSource]
+        assert await names(on) == [TBankSource, SberSource, VTBSource, AlfaSource, TelegramSource, TelegramSource, TelegramSource]
     assert "HH_ACCESS_TOKEN" in caplog.text
 
 
 async def test_registry_respects_disabled(cfg):
     off = replace(cfg, sources={**cfg.sources, "sber": {**cfg.sources["sber"], "enabled": False}})
-    assert await names(off) == [TBankSource, VTBSource, AlfaSource]
+    assert await names(off) == [TBankSource, VTBSource, AlfaSource, TelegramSource, TelegramSource, TelegramSource]
 
 
 async def test_run_cycle_commits_health_state(sm, cfg):
@@ -190,12 +191,12 @@ async def test_only_tbank_and_alfa_get_dedicated_client(cfg):
 
 async def test_registry_respects_disabled_vtb(cfg):
     off = replace(cfg, sources={**cfg.sources, "vtb": {**cfg.sources["vtb"], "enabled": False}})
-    assert await names(off) == [TBankSource, SberSource, AlfaSource]
+    assert await names(off) == [TBankSource, SberSource, AlfaSource, TelegramSource, TelegramSource, TelegramSource]
 
 
 async def test_registry_respects_disabled_alfa(cfg):
     off = replace(cfg, sources={**cfg.sources, "alfa": {**cfg.sources["alfa"], "enabled": False}})
-    assert await names(off) == [TBankSource, SberSource, VTBSource]
+    assert await names(off) == [TBankSource, SberSource, VTBSource, TelegramSource, TelegramSource, TelegramSource]
 
 
 async def test_alert_not_persisted_when_send_fails_and_retried(sm, cfg):
@@ -217,3 +218,23 @@ async def test_notify_reports_success():
 
     assert await _notify(FakeBot(), 1, "hi") is True
     assert await _notify(FakeBot(fail=True), 1, "hi") is False
+
+
+async def test_registry_builds_telegram_source_per_channel(cfg):
+    on = replace(
+        cfg,
+        sources={
+            **cfg.sources,
+            "telegram": {**cfg.sources["telegram"], "enabled": True, "channels": ["aa", "bb"]},
+        },
+    )
+    async with httpx.AsyncClient() as http:
+        built = [s for s in build_sources(on, http, settings()) if isinstance(s, TelegramSource)]
+    assert [s.name for s in built] == ["tg_aa", "tg_bb"]
+
+
+async def test_registry_telegram_disabled_builds_none(cfg):
+    off = replace(
+        cfg, sources={**cfg.sources, "telegram": {**cfg.sources["telegram"], "enabled": False}}
+    )
+    assert TelegramSource not in await names(off)

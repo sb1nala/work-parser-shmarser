@@ -125,3 +125,13 @@ sources:
     business_lines: ['1022', '1018']
     take: 100
     max_pages: 10
+  telegram:
+    enabled: true
+    # публичное превью каналов https://t.me/s/<канал> (без токенов): посты за последние
+    # window_days дней, не больше max_pages страниц (~20 постов) на канал. Посты - свободный
+    # текст, поэтому require_level_keyword отсеивает посты без слова уровня в названии
+    # (подборки, реклама, новости).
+    window_days: 14
+    max_pages: 10
+    require_level_keyword: true
+    channels: [newdirections, not_boring_ds_jobs, young_june]
