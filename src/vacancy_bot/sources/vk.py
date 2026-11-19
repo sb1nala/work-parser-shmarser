@@ -31,7 +31,9 @@ verifies it).
      schema.org JobPosting microdata (`itemprop="datePosted"` meta, the
      `itemprop="description"` article) and `<h4 class="vacancy-title">` blocks with
      `<div class="vacancy-tag">` values: "Уровень" (junior / middle / senior / lead / head,
-     a range), "График работы" (полный), "Формат работы". One page is fetched for each
+     a range), "График работы" (полный), "Формат работы" (Офисный /
+     Дистанционный / Комбинированный, possibly several: unioned with the list's `remote`
+     flag and work_format). One page is fetched for each
      listed vacancy (a polite delay between requests). The page is parsed with an HTML
      parser (by itemprop/class, not by attribute order). Layout-change guards: a page with
      the JobPosting marker where both the description and datePosted are missing raises;
@@ -57,8 +59,9 @@ verifies it).
    is composed from the stated fields only (project, direction, dates, skills). The pages
    are listed in config (sources.vk.portal_pages); when none is configured the portal is
    not requested. At the time of writing "internship" had 5 vacancies; "vacancy" had an
-   empty list, and a missing/null `vacancies` key is treated as empty (a present value
-   of the wrong type raises).
+   empty list (the live empty page still sends `"vacancies": []`). The `vacancies` key
+   must be present and a list: a missing or null key raises (a renamed key would
+   otherwise silently drop the internships).
 
 `raw` keeps only an allowlist of non-personal keys; no contact data is ever copied.
 """
@@ -171,6 +174,10 @@ def _map_vacancy(item: dict, page: str) -> Posting:
         formats.add(shown)
     if item.get("remote") is True:
         formats.add(WorkFormat.REMOTE)
+    # the page states the formats explicitly (it may list several)
+    formats |= {
+        _WORK_FORMATS[n] for f in _block(soup, "Формат работы") or [] if (n := _norm(f)) in _WORK_FORMATS
+    }
     level_block = _block(soup, "Уровень")
     levels = level_block or []
     schedule = _block(soup, "График работы") or []
@@ -366,7 +373,11 @@ class VKSource:
             if not found:
                 raise ValueError("no embedded page state")
             page = json.loads(found.group(1))["props"]["pageProps"]["page"]
-            vacancies = _list(page.get("vacancies"), "vacancies")  # absent = empty page
+            if "vacancies" not in page:
+                raise ValueError("vacancies key is missing")
+            if page["vacancies"] is None:
+                raise ValueError("vacancies is null")
+            vacancies = _list(page["vacancies"], "vacancies")
             units = {u["id"]: u["name"] for u in _list(page.get("units"), "units")}
             directions = {d["id"]: d["name"] for d in _list(page.get("directions"), "directions")}
             skills = page.get("skills") or {}

@@ -83,7 +83,10 @@ async def test_maps_fixture():
     assert first.title == "Продуктовый аналитик"
     assert first.url == f"{SITE}/46221/"
     assert first.cities == ("Москва",)
-    assert first.work_formats == frozenset({WorkFormat.REMOTE})
+    # the page's "Формат работы" block lists all three formats
+    assert first.work_formats == frozenset(
+        {WorkFormat.OFFICE, WorkFormat.REMOTE, WorkFormat.HYBRID}
+    )
     assert first.employment is Employment.FULL
     assert first.experience_years_min == 1  # middle, senior -> lower bound
     assert first.published_at == datetime(2026, 11, 19, tzinfo=UTC)
@@ -518,8 +521,16 @@ async def test_raises_when_fewer_vacancies_than_reported_count():
 
 @respx.mock
 @pytest.mark.parametrize("state", [{"units": []}, {"vacancies": None}])
-async def test_portal_missing_or_null_vacancies_is_an_empty_page(state):
+async def test_portal_missing_or_null_vacancies_raises(state):
     body = {"props": {"pageProps": {"page": state}}}
+    respx.get(f"{PORTAL}/vacancy").mock(return_value=httpx.Response(200, text=portal_html(body)))
+    with pytest.raises(RuntimeError, match="vacancies"):
+        await run(params(specialties=[], portal_pages=["vacancy"]))
+
+
+@respx.mock
+async def test_portal_empty_vacancies_list_is_an_empty_page():
+    body = {"props": {"pageProps": {"page": {"vacancies": []}}}}
     respx.get(f"{PORTAL}/vacancy").mock(return_value=httpx.Response(200, text=portal_html(body)))
     assert await run(params(specialties=[], portal_pages=["vacancy"])) == []
 
@@ -534,3 +545,18 @@ async def test_portal_experience_only_for_internship_or_junior_and_titles_stripp
     (p,) = await run(params(specialties=[], portal_pages=["vacancy"]))
     assert p.experience_years_min is None
     assert p.title == "Аналитик"
+
+
+@respx.mock
+async def test_page_work_format_block_is_unioned_with_the_list_flags():
+    item = {**ITEMS[1], "work_format": "Офисный", "remote": True}
+    respx.get(URL).mock(return_value=httpx.Response(200, json=page([item])))
+    body = job_page() + (
+        '<div><div><h4 class="vacancy-title">Формат работы</h4></div>'
+        '<div><div class="vacancy-tag">Комбинированный</div></div></div>'
+    )
+    respx.get(f"{SITE}/{item['id']}/").mock(return_value=httpx.Response(200, text=body))
+    (p,) = await run(params())
+    assert p.work_formats == frozenset(
+        {WorkFormat.OFFICE, WorkFormat.REMOTE, WorkFormat.HYBRID}
+    )
