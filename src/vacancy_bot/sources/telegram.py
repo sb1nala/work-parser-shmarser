@@ -42,7 +42,12 @@ def _utcnow() -> datetime:
 
 def _is_decoration(ch: str) -> bool:
     # whitespace, emoji and invisible joiners/selectors at the edges of a title
-    return ch.isspace() or unicodedata.category(ch) in ("So", "Sk", "Cf", "Cn", "Cs")
+    # (variation selectors U+FE0E/U+FE0F are category Mn, so they are listed explicitly)
+    return (
+        ch.isspace()
+        or ch in "\ufe0e\ufe0f"
+        or unicodedata.category(ch) in ("So", "Sk", "Cf", "Cn", "Cs")
+    )
 
 
 def _clean_edges(text: str) -> str:
@@ -117,7 +122,15 @@ class TelegramSource:
         self.name = f"tg_{channel}"
 
     def _map(self, node: Tag, number: int, published_at: datetime) -> Posting | None:
-        text_node = node.select_one(".tgme_widget_message_text")
+        # a reply's quoted preview is also .tgme_widget_message_text: take the post's own
+        text_node = next(
+            (
+                n
+                for n in node.select(".tgme_widget_message_text")
+                if n.find_parent(class_="tgme_widget_message_reply") is None
+            ),
+            None,
+        )
         if text_node is None:
             return None
         text = _text_of(text_node).strip()

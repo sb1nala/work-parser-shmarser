@@ -93,7 +93,7 @@ async def test_skips_posts_without_text():
     mock_then_end(PAGE)
     ids = {p.external_id for p in await run()}
     assert "7157" not in ids  # media only
-    assert ids == {"7154", "7156", "7158", "7161", "7165"}
+    assert ids == {"7154", "7156", "7158", "7161", "7165", "7162"}
 
 
 @respx.mock
@@ -197,3 +197,62 @@ async def test_raises_when_max_pages_exhausted():
     with pytest.raises(RuntimeError, match="max_pages"):
         await run(params(max_pages=3))
     assert route.call_count == 3
+
+
+@respx.mock
+async def test_reply_uses_own_text_and_skips_media_only_reply():
+    mock_then_end(PAGE)
+    postings = {p.external_id: p for p in await run()}
+    reply = postings["7162"]
+    assert reply.title == "Ответ: Junior Dev"  # not the quoted "Стажёр аналитик"
+    assert reply.company == "Своя Компания"
+    assert "Цитата" not in reply.raw["text"]
+    assert "7163" not in postings  # media-only reply: only the quote has text
+
+
+async def fetch_one(text, when="2026-11-18T10:00:00+00:00"):
+    with respx.mock:
+        mock_then_end(html(post_html(1, when, text)))
+        (p,) = await run()
+    return p
+
+
+@pytest.mark.parametrize("sep", [" / ", " — ", " | "])
+async def test_title_company_separators(sep):
+    p = await fetch_one(f"Junior Dev{sep}Acme")
+    assert (p.title, p.company) == ("Junior Dev", "Acme")
+
+
+@pytest.mark.parametrize("text", ["Junior Dev / ", "/ Acme", "Junior Dev |", "A/B tester"])
+async def test_no_split_when_a_side_is_empty(text):
+    p = await fetch_one(text)
+    assert p.company == "Telegram @newdirections"
+
+
+async def test_variation_selector_stripped_from_title_and_city():
+    p = await fetch_one("⚡\ufe0f Junior Dev / Acme\ufe0f<br>🗺\ufe0f Москва.")
+    assert (p.title, p.company) == ("Junior Dev", "Acme")
+    assert p.cities == ("Москва",)
+
+
+@pytest.mark.parametrize(
+    ("line", "cities", "formats"),
+    [
+        ("📍 Казань, гибрид", ("Казань",), {WorkFormat.HYBRID}),
+        ("🗺 Berlin. Hybrid", ("Berlin",), {WorkFormat.HYBRID}),
+        ("🗺 Омск. Офис", ("Омск",), {WorkFormat.OFFICE}),
+        ("📍 Tbilisi, Office", ("Tbilisi",), {WorkFormat.OFFICE}),
+        ("🗺 Тверь. Удаленка", ("Тверь",), {WorkFormat.REMOTE}),
+        ("📍 Remote", (), {WorkFormat.REMOTE}),
+    ],
+)
+async def test_city_line_markers_and_formats(line, cities, formats):
+    p = await fetch_one(f"Junior Dev<br>{line}<br>Текст")
+    assert p.cities == cities
+    assert p.work_formats == frozenset(formats)
+
+
+async def test_br_becomes_newline():
+    p = await fetch_one("Junior Dev / Acme<br>строка 1<br><br>строка 2")
+    assert p.description == "строка 1\n\nстрока 2"
+    assert p.raw["text"] == "Junior Dev / Acme\nстрока 1\n\nстрока 2"
