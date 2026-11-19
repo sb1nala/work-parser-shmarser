@@ -38,6 +38,7 @@ _TITLE_LABELS = ("позиция", "должность", "вакансия")
 _COMPANY_LABELS = ("компания",)
 _LOCATION_LABELS = ("локация", "город")
 _LABEL_BLOCK_LINES = 6  # labels count only in the post's leading block (up to a blank line)
+_TRACKING_PARAMS = frozenset({"fbclid", "gclid", "yclid", "_openstat", "ref", "referrer"})
 _ITEM_MARKERS = ("- ", "• ", "– ")
 _DIGEST_MIN_ITEMS = 3
 _TRAILING_PAREN = re.compile(r"\(([^()]*)\)\s*$")
@@ -113,7 +114,8 @@ def _segments(text_node: Tag) -> list[tuple[str, Tag | None]]:
 
 
 def _item_link(link: Tag | None) -> str | None:
-    """The item's own URL (not a t.me channel link), without utm tracking params."""
+    """The item's canonical own URL (not a t.me channel link): lowercase scheme/host,
+    tracking params and fragment dropped, no trailing slash. Also the item's identity."""
     # hrefs in the preview are double-escaped ("&amp;amp;"): unescape until stable
     href = str(link.get("href", "")) if link is not None else ""
     while (unescaped := html.unescape(href)) != href:
@@ -121,12 +123,26 @@ def _item_link(link: Tag | None) -> str | None:
     parts = urlsplit(href)
     if parts.scheme not in ("http", "https") or parts.netloc.endswith("t.me"):
         return None
-    query = [(k, v) for k, v in parse_qsl(parts.query) if not k.startswith("utm_")]
-    return urlunsplit(parts._replace(query=urlencode(query), fragment=""))
+    query = sorted(
+        (k, v)
+        for k, v in parse_qsl(parts.query)
+        if not k.startswith("utm_") and k not in _TRACKING_PARAMS
+    )
+    return urlunsplit((
+        parts.scheme.lower(),
+        parts.netloc.lower(),
+        parts.path.rstrip("/") or "/",
+        urlencode(query),
+        "",
+    ))
 
 
 def _is_item(text: str, link: Tag | None) -> bool:
     return text.startswith(_ITEM_MARKERS) and _item_link(link) is not None
+
+
+def _is_bullet(text: str) -> bool:
+    return text.startswith(_ITEM_MARKERS) and len(text) > 2
 
 
 def _split_item(body: str, default_company: str) -> tuple[str, str]:
@@ -209,10 +225,13 @@ class TelegramSource:
         if text_node is None:
             return []
         segments = _segments(text_node)
-        items = [(t, a) for t, a in segments if _is_item(t, a)]
+        linked = [(t, a) for t, a in segments if _is_item(t, a)]
         first_text = next((t for t, _ in segments if _clean_edges(t)), "")
-        if "подборк" in first_text.lower() or len(items) >= _DIGEST_MIN_ITEMS:
-            return self._map_digest(items, number, published_at)
+        if "подборк" in first_text.lower():  # a declared digest: link-less bullets count too
+            bullets = [(t, a) for t, a in segments if _is_bullet(t)]
+            return self._map_digest(bullets, number, published_at)
+        if len(linked) >= _DIGEST_MIN_ITEMS:
+            return self._map_digest(linked, number, published_at)
         post = self._map_post(text_node, number, published_at)
         return [post] if post else []
 
@@ -246,7 +265,8 @@ class TelegramSource:
             postings.append(
                 Posting(
                     source=self.name,
-                    external_id=f"{number}:{index}",
+                    # the same vacancy in later digests of the channel is the same posting
+                    external_id=url or f"{number}:{index}",
                     url=url or f"https://t.me/{self._channel}/{number}",
                     company=company,
                     title=title,

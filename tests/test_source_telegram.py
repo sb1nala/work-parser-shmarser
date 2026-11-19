@@ -95,9 +95,9 @@ async def test_skips_posts_without_text():
     mock_then_end(PAGE)
     ids = {p.external_id for p in await run()}
     assert "7157" not in ids  # media only
-    assert ids == {"7154", "7156", "7158", "7161", "7165", "7162"} | {
-        f"7169:{i}" for i in range(1, 10)
-    }  # 7169 is a digest: one posting per item
+    plain = {i for i in ids if not i.startswith("http")}
+    assert plain == {"7154", "7156", "7158", "7161", "7165", "7162"}
+    assert len(ids - plain) == 9  # 7169 is a digest: one posting per item, keyed by its link
 
 
 @respx.mock
@@ -361,6 +361,15 @@ def item(n, text, extra=""):
     return f'- <a href="{LINK.format(n)}">{text}</a>{extra}'
 
 
+def job_url(n):
+    return f"https://youngjunior.ru/data/jobs/{n}"
+
+
+def by_item(postings):
+    """Digest postings keyed "<post>:<item index>" (their external_id is the item URL)."""
+    return {f"{p.raw['post']}:{p.raw['item']}": p for p in postings if "item" in p.raw}
+
+
 def digest_html(*items, header="<b>Подборка вакансий: Data</b>"):
     footer = '<br/><br/><a href="https://t.me/+abc">Вакансии</a> │ <a href="https://t.me/+d">Ещё</a>'
     return header + "<br/><br/><b><i>Раздел:</i></b><br/>" + "<br/>".join(items) + footer
@@ -370,12 +379,12 @@ def digest_html(*items, header="<b>Подборка вакансий: Data</b>")
 async def test_digest_fixture_items_become_postings():
     mock_then_end(PAGE)
     postings = await run()
-    ids = {p.external_id for p in postings}
-    assert ids >= {f"7169:{i}" for i in range(1, 10)}
-    assert "7169" not in ids  # the digest post itself is not a posting
+    assert "7169" not in {p.external_id for p in postings}  # the digest itself is not a posting
     assert not any("Подборка" in p.title for p in postings)
-    by_id = {p.external_id: p for p in postings}
+    by_id = by_item(postings)
+    assert len(by_id) == 9
     first = by_id["7169:1"]
+    assert first.external_id == "https://youngjunior.ru/data/jobs/113647"
     assert first.title == "Стажёр в Центр практического ИИ"
     assert first.company == "ПАО Сбербанк"
     assert first.url == "https://youngjunior.ru/data/jobs/113647"  # own link, utm stripped
@@ -400,11 +409,11 @@ async def test_digest_item_forms():
     )
     with respx.mock:
         mock_then_end(html(post_html(50, "2026-11-18T10:00:00+00:00", text)))
-        ps = {p.external_id: p for p in await run()}
+        ps = by_item(await run())
     assert len(ps) == 6
     a = ps["50:1"]
     assert (a.title, a.company) == ("Data Scientist (Deep Learning) | Junior", "Бюро кредитных историй")
-    assert a.url == "https://youngjunior.ru/data/jobs/1" and a.work_formats == frozenset()
+    assert a.url == a.external_id == job_url(1) and a.work_formats == frozenset()
     assert (ps["50:2"].title, ps["50:2"].company) == (
         "Графический дизайнер / Бренд дизайнер", "ФотоЛайф")
     assert (ps["50:3"].title, ps["50:3"].company) == ("Аналитик", "Acme")
@@ -422,7 +431,7 @@ async def test_digest_detected_by_item_count_without_header():
     with respx.mock:
         mock_then_end(html(post_html(60, "2026-11-18T10:00:00+00:00", body)))
         ps = await run()
-    assert [p.external_id for p in ps] == ["60:1", "60:2", "60:3"]
+    assert [p.external_id for p in ps] == [job_url(1), job_url(2), job_url(3)]
 
 
 async def test_digest_header_without_items_gives_nothing():
@@ -442,7 +451,7 @@ async def test_digest_items_pass_or_fail_the_filter():
                        item(3, "Junior Data Analyst в Y"))
     with respx.mock:
         mock_then_end(html(post_html(70, "2026-11-18T10:00:00+00:00", body)))
-        ps = {p.external_id: p for p in await run()}
+        ps = by_item(await run())
     verdict = {k: evaluate(p, CONFIG.criteria) for k, p in ps.items()}
     assert verdict["70:1"].accepted and verdict["70:3"].accepted
     assert not verdict["70:2"].accepted
@@ -458,4 +467,38 @@ async def test_digest_items_dedup_across_pages():
         side_effect=[httpx.Response(200, text=first), httpx.Response(200, text=second)]
     )
     ps = await run()
-    assert [p.external_id for p in ps] == ["80:1", "80:2", "80:3"]
+    assert [p.external_id for p in ps] == [job_url(1), job_url(2), job_url(3)]
+
+
+@respx.mock
+async def test_same_item_link_in_two_digests_is_one_posting():
+    def digest(number, utm, link=None):
+        href = link or f"https://YoungJunior.ru/data/jobs/7/?utm_source=a&amp;amp;utm_medium={utm}&amp;amp;fbclid=z#top"
+        items = [f'- <a href="{href}">Стажёр аналитик в Ozon</a>'] + [
+            item(n, f"Стажёр {n} в X") for n in (number, number + 1)
+        ]
+        return post_html(number, "2026-11-18T10:00:00+00:00", digest_html(*items))
+
+    mock_then_end(html(digest(20, "one"), digest(10, "two")))
+    ps = await run()
+    ozon = [p for p in ps if p.company == "Ozon"]
+    assert len(ozon) == 1
+    assert ozon[0].external_id == ozon[0].url == "https://youngjunior.ru/data/jobs/7"
+    assert ozon[0].raw["post"] == "20"  # first occurrence wins
+    assert len(ps) == 5  # 1 shared + 2 + 2 distinct items
+
+
+async def test_item_without_link_keeps_post_and_index_id():
+    body = (
+        "<b>Подборка вакансий</b><br/>"
+        + item(1, "Стажёр A в Acme")
+        + "<br/>- Стажёр Б в Beta<br/>"
+        + item(2, "Стажёр C в Gamma")
+    )
+    with respx.mock:
+        mock_then_end(html(post_html(90, "2026-11-18T10:00:00+00:00", body)))
+        ps = await run()
+    assert [p.external_id for p in ps] == [job_url(1), "90:2", job_url(2)]
+    linkless = ps[1]
+    assert (linkless.title, linkless.company) == ("Стажёр Б", "Beta")
+    assert linkless.url == "https://t.me/newdirections/90"
